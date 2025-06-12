@@ -95,7 +95,6 @@ markers = [
 # Ruff Linting     #
 # ---------------- #
 [tool.ruff]
-target-version = "py311"
 target-version = "py310"
 line-length = 120
 select = ["A", "ARG","ASYNC","BLE","C90", "E", "F", "I", "N", "UP032", "W"]
