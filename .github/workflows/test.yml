@@ -1,0 +1,36 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11"]
+        plotly-version: ["5.15.0", "5.22.0"] # Example versions
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for versioningit
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.4.1
+        with:
+          cache: true
+
+      - name: Install dependencies with specific plotly version
+        run: |
+          pixi add python==${{ matrix.python-version }}
+          pixi add plotly==${{ matrix.plotly-version }}
+          pixi install
+
+      - name: Run tests
+        run: pixi run test 

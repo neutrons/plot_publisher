@@ -1,0 +1,37 @@
+name: Build and Deploy Conda Package
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.4.1
+        with:
+          cache: true
+
+      - name: Build conda package
+        run: pixi run -e build conda-build recipe
+
+      - name: Upload to anaconda.org
+        run: |
+          pixi run -e build anaconda -t ${{ secrets.ANACONDA_TOKEN }} upload --user AnacondaUser -l main linux-64/plot_publisher-*.tar.bz2
+        # Need to configure the ANACONDA_TOKEN secret in repository settings
+        # and replace AnacondaUser with anaconda.org username.
+
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./linux-64/plot_publisher-1.0.0-0.tar.bz2
+          asset_name: plot_publisher-1.0.0-linux-64.tar.bz2
+          asset_content_type: application/x-bzip2 

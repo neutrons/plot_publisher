@@ -2,35 +2,23 @@
 # Project Metadata #
 # ---------------- #
 [project]
-name = "examplepyapp"
-description = "Example Python repo for neutrons"
+name = "plot-publisher"
+description = "A utility to publish plotly plots to a live data server."
 dynamic = ["version"]
 requires-python = ">=3.10"
 license = { text = "MIT" }
-keywords = ["neutrons", "example", "python"]
+keywords = ["neutrons", "plotting", "live-data"]
 readme = "README.md"
 dependencies = [
-  # Dependencies available from both PyPI and conda should be listed here
+  "requests",
+  "plotly",
   "numpy",
-  "QtPy",
-  "PyQt5",
-  "pyqtgraph",
-  # Dependencies only available from PyPI should be listed here
-  "bm3d-streak-removal>=0.2.0,<0.3",
-  "pytest-playwright>=0.7.0,<0.8",
 ]
 
 [project.urls]
-homepage = "https://github.com/neutrons/python_project_template/"  # if no homepage, use repo url
-repository = "https://github.com/neutrons/python_project_template/"
-# documentation = add_url_to_readthedoc_here
-issues = "https://github.com/neutrons/python_project_template/issues"
-
-[project.scripts]
-packagename-cli = "packagenamepy.packagename:main"
-
-[project.gui-scripts]
-packagenamepy = "packagenamepy.packagename:gui"
+homepage = "https://github.com/neutrons/plot_publisher/"
+repository = "https://github.com/neutrons/plot_publisher/"
+issues = "https://github.com/neutrons/plot_publisher/issues"
 
 [project.optional-dependencies]
 docs = [
@@ -61,20 +49,17 @@ requires = ["hatchling", "versioningit"]
 source = "versioningit"
 
 [tool.hatch.build.hooks.versioningit-onbuild]
-source-file = "src/packagenamepy/_version.py"
-build-file = "packagenamepy/_version.py"
+source-file = "src/plot_publisherpy/_version.py"
+build-file = "plot_publisherpy/_version.py"
 replacement = '"{next_version}"'
 
 [tool.hatch.build]
 artifacts = [
-  "src/packagenamepy/_version.py",
-  "src/packagenamepy/**/*.yml",
-  "src/packagenamepy/**/*.yaml",
-  "src/packagenamepy/**/*.ini"
+  "src/plot_publisherpy/_version.py",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/packagenamepy"]
+packages = ["src/plot_publisherpy"]
 
 [tool.versioningit.vcs]
 method = "git"
@@ -89,13 +74,13 @@ dirty = "{version}+d{build_date:%Y%m%d}"
 distance-dirty = "{next_version}.dev{distance}+d{build_date:%Y%m%d%H%M}"
 
 [tool.versioningit.write]
-file = "src/packagenamepy/_version.py"
+file = "src/plot_publisherpy/_version.py"
 
 # ---------------- #
 # Pytest Config    #
 # ---------------- #
 [tool.pytest.ini_options]
-addopts = "-v --cov=packagenamepy --cov-report=term-missing"
+addopts = "-v --cov=plot_publisherpy --cov-report=term-missing"
 pythonpath = [
   ".", "src", "scripts"
 ]
@@ -111,6 +96,7 @@ markers = [
 # ---------------- #
 [tool.ruff]
 target-version = "py311"
+target-version = "py310"
 line-length = 120
 select = ["A", "ARG","ASYNC","BLE","C90", "E", "F", "I", "N", "UP032", "W"]
 exclude = ["notebooks/**", "**/*.ipynb"]
@@ -120,7 +106,7 @@ select = ["E", "F", "I"]
 ignore = []
 
 [tool.ruff.lint.isort]
-known-first-party = ["packagenamepy"]
+known-first-party = ["plot_publisherpy"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -143,7 +129,7 @@ default = {features = ["test", "package", "docs", "developer"], solve-group = "d
 jupyter = {features = ["developer", "jupyter"], solve-group = "jupyter"}
 
 [tool.pixi.pypi-dependencies]
-examplepyapp = { path = ".", editable = true }
+plot-publisher = { path = ".", editable = true }
 toml-cli = "*"
 
 # The dependencies listed below will be prioritized over the ones
@@ -154,23 +140,19 @@ versioningit = "*"
 
 [tool.pixi.package.run-dependencies]
 python = ">=3.10"
+requests = "*"
+plotly = "*"
 numpy = "*"
-QtPy = "*"
-PyQt5 = "*"
-pyqtgraph = "*"
 
 [tool.pixi.dependencies]
 # This will overwrite the dependencies listed in the [project] section
 numpy = "*"
 scipy = "*"  # specify derivative dependencies here if you need them from conda
-# GUI
-pyqtgraph = "*"
-qt = "*"
-qtpy = "*"
-pyqt = "*"
+requests = "*"
+plotly = "*"
 
 [tool.pixi.package]
-name = "examplepyapp"
+name = "plot-publisher"
 version = "0.0.0"  # placeholder, overwritten by sync-version
 
 [tool.pixi.package.build]

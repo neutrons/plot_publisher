@@ -1,12 +1,16 @@
-=========================================
-Welcome to python project template docs!
+.. plot_publisher documentation master file, created by
+   sphinx-quickstart on Tue Jul 23 15:22:24 2024.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Welcome to plot_publisher's documentation!
 =========================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   README
+   api
 
 =========================================
 Indices and tables
