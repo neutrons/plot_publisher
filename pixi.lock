@@ -270,7 +270,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/pyyaml-6.0.2-py310h38315fa_2.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/rattler-build-0.43.1-h63977a8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/requests-2.32.4-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/ruff-0.11.13-py310h19254ed_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/ruff-0.12.0-py310h19254ed_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-80.9.0-pyhff2d567_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/sqlite-3.50.1-h2466b09_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/tbb-2021.13.0-h62715c5_1.conda
@@ -1061,7 +1061,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/rfc3339-validator-0.1.4-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/rfc3986-validator-0.1.1-pyh9f0ad1d_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/win-64/rpds-py-0.25.1-py310hed05c55_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/ruff-0.11.13-py310h19254ed_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/ruff-0.12.0-py310h19254ed_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/send2trash-1.8.3-pyh5737063_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-80.9.0-pyhff2d567_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhd8ed1ab_0.conda
@@ -5463,9 +5463,9 @@ packages:
   license_family: MIT
   size: 7440873
   timestamp: 1749216944909
-- conda: https://conda.anaconda.org/conda-forge/win-64/ruff-0.11.13-py310h19254ed_0.conda
-  sha256: e6b83d8fe10f321bd19d8d4da0d2737fc640812bfeeaf7d26493b0bf48052e89
-  md5: fdd2e7144818c4e07b2a59d192af42ef
+- conda: https://conda.anaconda.org/conda-forge/win-64/ruff-0.12.0-py310h19254ed_0.conda
+  sha256: deb8147a9d81ff44e549735f40284eeada89b1db071ad68f6184c5f1cbe183f0
+  md5: da3cff54f28ef3774ccbf898d73b7ff4
   depends:
   - python >=3.10,<3.11.0a0
   - python_abi 3.10.* *_cp310
@@ -5474,8 +5474,8 @@ packages:
   - vc14_runtime >=14.29.30139
   license: MIT
   license_family: MIT
-  size: 8270061
-  timestamp: 1749216766362
+  size: 8299290
+  timestamp: 1750189431054
 - conda: https://conda.anaconda.org/conda-forge/noarch/send2trash-1.8.3-pyh0d859eb_1.conda
   sha256: 00926652bbb8924e265caefdb1db100f86a479e8f1066efe395d5552dde54d02
   md5: 938c8de6b9de091997145b3bf25cdbf9
