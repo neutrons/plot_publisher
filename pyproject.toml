@@ -140,7 +140,6 @@ toml-cli = "*"
 # This will overwrite the dependencies listed in the [project] section
 python = ">=3.10"
 numpy = "*"
-scipy = "*"  # specify derivative dependencies here if you need them from conda
 requests = "*"
 plotly = "*"
 
