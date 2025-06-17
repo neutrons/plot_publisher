@@ -21,6 +21,11 @@ repository = "https://github.com/neutrons/plot_publisher/"
 issues = "https://github.com/neutrons/plot_publisher/issues"
 
 [project.optional-dependencies]
+test = [
+  "pytest",
+  "pytest-cov",
+  "pytest-xdist",
+]
 docs = [
   "sphinx>=8.2.1,<9",
   "sphinx_rtd_theme>=3.0.1,<4",
