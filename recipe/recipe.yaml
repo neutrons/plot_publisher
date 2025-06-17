@@ -1,0 +1,47 @@
+package:
+  name: plot-publisher
+  version: "0.2.0"
+
+source:
+  path: ..
+
+build:
+  number: 0
+  script: "python -m pip install . -vv --no-deps --no-build-isolation"
+  noarch: python
+
+requirements:
+  host:
+    - python >=3.10
+    - pip
+    - hatchling
+    - versioningit
+  run:
+    - python >=3.10
+    - requests
+    - plotly
+    - numpy
+
+tests:
+  - python:
+      imports:
+        - plot_publisherpy
+  - script:
+      - pip check
+    requirements:
+      run:
+        - pip
+
+about:
+  homepage: https://github.com/neutrons/plot_publisher/
+  repository: https://github.com/neutrons/plot_publisher/
+  documentation: https://github.com/neutrons/plot_publisher/
+  summary: A utility to publish plotly plots to a live data server.
+  license: MIT
+  license_file: LICENSE
+  description: |
+    A utility to publish plotly plots to a live data server.
+
+extra:
+  recipe-maintainers:
+    - neutrons 

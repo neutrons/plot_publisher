@@ -11,8 +11,10 @@ numpy = "*"
 pytest = "*"
 pytest-cov = "*"
 pre-commit = "*"
+rattler-build = "*"
 
 [tasks]
+build-conda = "rattler-build build --recipe recipe/recipe.yaml --output-dir ."
 test = "pytest tests/ --cov=src/plot_publisherpy --cov-report=xml --cov-report=term-missing"
 lint = "pre-commit run --all-files"
 install-dev = "pip install -e ." 
