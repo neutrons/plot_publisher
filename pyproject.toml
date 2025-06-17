@@ -132,7 +132,6 @@ jupyter = {features = ["developer", "jupyter"], solve-group = "jupyter"}
 
 [tool.pixi.pypi-dependencies]
 plot-publisher = { path = ".", editable = true }
-toml-cli = "*"
 
 # The dependencies listed below will be prioritized over the ones
 # listed in the [project] section.
