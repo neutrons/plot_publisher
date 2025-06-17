@@ -148,6 +148,8 @@ plotly = "*"
 # Pixi Tasks      #
 # --------------- #
 [tool.pixi.tasks]
+# Conda packaging tasks
+build-conda = { cmd = "rattler-build build --recipe recipe/recipe.yaml --output-dir .", description = "Build the conda package" }
 # PyPi packaging tasks
 build-pypi = { cmd = "hatch build", description = "Build the package for PyPI" }
 publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package to PyPI", depends-on = ["build-pypi"] }
@@ -171,6 +173,7 @@ pytest-xdist = "*"
 pytest-repeat = "*"
 
 [tool.pixi.feature.package.dependencies]
+rattler-build = "*"
 twine = ">=6.1.0,<7"
 versioningit = "*"
 hatch = "*"
