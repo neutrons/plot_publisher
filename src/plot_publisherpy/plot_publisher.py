@@ -69,7 +69,7 @@ def plot1d(
 ):
     """
     Produce a 1D plot
-    @param data_list: list of traces [ [x1, y1], [x2, y2], ...]
+    @param data_list: list of traces [ [x1, y1], [x2, y2], ...] or [x, y] or [x, y, error_y] or [x, y, error_y, error_x]
     @param data_names: name for each trace, for the legend
     """
     import plotly.graph_objs as go
@@ -79,17 +79,29 @@ def plot1d(
     if not isinstance(data_list, list):
         raise RuntimeError("plot1d: data_list parameter is expected to be a list")
 
-    # Catch the case where the list is in the format [x y]
     data = []
     show_legend = False
-    if len(data_list) == 2 and not isinstance(data_list[0], list):
+
+    if len(data_list) >= 2 and not isinstance(data_list[0], list):
         label = ""
         if isinstance(data_names, list) and len(data_names) == 1:
             label = data_names[0]
             show_legend = True
-        data = [go.Scatter(name=label, x=data_list[0], y=data_list[1])]
+
+        err_x = {}
+        err_y = {}
+        if len(data_list) >= 3:
+            err_y = dict(type="data", array=data_list[2], visible=True)
+        if len(data_list) >= 4:
+            err_x = dict(type="data", array=data_list[3], visible=True)
+            if show_dx is False:
+                err_x["thickness"] = 0
+        
+        data = [go.Scatter(name=label, x=data_list[0], y=data_list[1], error_x=err_x, error_y=err_y)]
     else:
         for i in range(len(data_list)):
+            if not isinstance(data_list[i], list) or len(data_list[i]) < 2:
+                raise RuntimeError(f"plot1d: data_list[{i}] should be a list with at least [x, y] data")
             label = ""
             if isinstance(data_names, list) and len(data_names) == len(data_list):
                 label = data_names[i]
