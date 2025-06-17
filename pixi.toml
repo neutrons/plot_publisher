@@ -1,0 +1,18 @@
+[project]
+name = "plot-publisher"
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
+
+[dependencies]
+python = "==3.10"
+plotly = "==5.15.0"
+requests = "*"
+numpy = "*"
+pytest = "*"
+pytest-cov = "*"
+pre-commit = "*"
+
+[tasks]
+test = "pytest tests/ --cov=src/plot_publisherpy --cov-report=xml --cov-report=term-missing"
+lint = "pre-commit run --all-files"
+install-dev = "pip install -e ." 
