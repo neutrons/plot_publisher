@@ -85,7 +85,7 @@ file = "src/plot_publisherpy/_version.py"
 # Pytest Config    #
 # ---------------- #
 [tool.pytest.ini_options]
-addopts = "-v --cov=plot_publisherpy --cov-report=term-missing"
+addopts = "-v --cov=src/plot_publisherpy --cov-report=term-missing"
 pythonpath = [
   ".", "src", "scripts"
 ]
