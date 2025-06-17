@@ -12,6 +12,15 @@ pytest = "*"
 pytest-cov = "*"
 pre-commit = "*"
 rattler-build = "*"
+ruff = ">=0.11.13,<0.13"
+
+[environments]
+jupyter = ["jupyter"]
+
+[feature.jupyter.dependencies]
+jupyterlab = "*"
+ipympl = "*"
+ipywidgets = "*"
 
 [tasks]
 build-conda = "rattler-build build --recipe recipe/recipe.yaml --output-dir ."
