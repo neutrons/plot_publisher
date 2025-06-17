@@ -132,6 +132,7 @@ jupyter = {features = ["developer", "jupyter"], solve-group = "jupyter"}
 
 [tool.pixi.pypi-dependencies]
 plot-publisher = { path = ".", editable = true }
+toml-cli = "*"
 
 # The dependencies listed below will be prioritized over the ones
 # listed in the [project] section.
@@ -139,6 +140,7 @@ plot-publisher = { path = ".", editable = true }
 # This will overwrite the dependencies listed in the [project] section
 python = ">=3.10"
 numpy = "*"
+scipy = "*"  # specify derivative dependencies here if you need them from conda
 requests = "*"
 plotly = "*"
 
@@ -147,7 +149,7 @@ plotly = "*"
 # --------------- #
 [tool.pixi.tasks]
 # Conda packaging tasks
-build-conda = { cmd = "rattler-build build --recipe recipe/recipe.yaml", description = "Build the conda package" }
+build-conda = { cmd = "rattler-build build --recipe recipe/recipe.yaml --output-dir ./output", description = "Build the conda package" }
 # PyPi packaging tasks
 build-pypi = { cmd = "hatch build", description = "Build the package for PyPI" }
 publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package to PyPI", depends-on = ["build-pypi"] }
