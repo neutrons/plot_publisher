@@ -1,36 +1,32 @@
-name: Update lockfiles
-
-permissions:
-  contents: write
-  pull-requests: write
+name: Update Lockfile
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: 0 5 1 * *
+    # Every Monday at 8am
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'pyproject.toml'
 
 jobs:
-  pixi-update:
+  update-lockfile:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Set up pixi
         uses: prefix-dev/setup-pixi@v0.8.8
         with:
-          run-install: false
-      - name: Update lockfiles
-        run: |
-          set -o pipefail
-          pixi update --json | pixi exec pixi-diff-to-markdown >> diff.md
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v7
+          pixi-version: v0.48.1
+      - name: Update lockfile
+        run: pixi update
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: Update pixi lockfile
-          title: Update pixi lockfile
-          body-path: diff.md
-          branch: update-pixi
-          base: main  # change this to the default branch of your repository
-          labels: pixi
-          delete-branch: true
-          add-paths: pixi.lock
+          commit-message: "build: update lockfile"
+          title: "Update pixi.lock"
+          body: "This PR updates the `pixi.lock` file."
+          branch: "update-lockfile"
