@@ -171,3 +171,9 @@ src/packagenamepy/_version.py
 # do not track conda package archive from pixi-build
 *.conda
 noarch/
+
+# Temp files
+*.swp
+*.swo
+
+src/plot_publisher/_version.py

@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Welcome to plot_publisher's documentation!
-=========================================
+============================================
 
 .. toctree::
    :maxdepth: 2
@@ -12,9 +12,8 @@ Welcome to plot_publisher's documentation!
 
    api
 
-=========================================
 Indices and tables
-=========================================
+==================
 
 * :ref:`genindex`
 * :ref:`modindex`
