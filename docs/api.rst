@@ -1,9 +1,7 @@
-API Reference
-=============
+API
+===
 
-This is the API reference for the ``plot_publisher`` package.
-
-.. automodule:: plot_publisherpy
+.. automodule:: plot_publisher
    :members:
    :undoc-members:
    :show-inheritance: 

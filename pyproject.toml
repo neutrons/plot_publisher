@@ -10,9 +10,8 @@ license = { text = "MIT" }
 keywords = ["neutrons", "plotting", "live-data"]
 readme = "README.md"
 dependencies = [
-  "requests",
-  "plotly",
-  "numpy",
+  "requests>2.0.0",
+  "plotly>5.0.0",
 ]
 
 [project.urls]
@@ -33,16 +32,6 @@ docs = [
   "myst_parser",
 ]
 
-# We use this section to map conda packages to PyPI packages if they have different names
-# NOTE: prefix-dev provide minimum mapping, and we should add them in explicitly whenever
-#       needed.
-[conda-pypi-map]
-"conda-forge" = """
-{
-  "pyqt": "PyQt5",
-}
-"""
-
 [build-system]
 build-backend = "hatchling.build"
 requires = ["hatchling", "versioningit"]
@@ -54,17 +43,17 @@ requires = ["hatchling", "versioningit"]
 source = "versioningit"
 
 [tool.hatch.build.hooks.versioningit-onbuild]
-source-file = "src/plot_publisherpy/_version.py"
-build-file = "plot_publisherpy/_version.py"
+source-file = "src/plot_publisher/_version.py"
+build-file = "plot_publisher/_version.py"
 replacement = '"{next_version}"'
 
 [tool.hatch.build]
 artifacts = [
-  "src/plot_publisherpy/_version.py",
+  "src/plot_publisher/_version.py",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/plot_publisherpy"]
+packages = ["src/plot_publisher"]
 
 [tool.versioningit.vcs]
 method = "git"
@@ -79,15 +68,15 @@ dirty = "{version}+d{build_date:%Y%m%d}"
 distance-dirty = "{next_version}.dev{distance}+d{build_date:%Y%m%d%H%M}"
 
 [tool.versioningit.write]
-file = "src/plot_publisherpy/_version.py"
+file = "src/plot_publisher/_version.py"
 
 # ---------------- #
 # Pytest Config    #
 # ---------------- #
 [tool.pytest.ini_options]
-addopts = "-v --cov=src/plot_publisherpy --cov-report=term-missing"
+addopts = "-v --cov=src/plot_publisher --cov-report=term-missing --cov-report=xml"
 pythonpath = [
-  ".", "src", "scripts"
+  ".", "src"
 ]
 testpaths = ["tests"]
 python_files = ["test*.py"]
@@ -103,14 +92,12 @@ markers = [
 target-version = "py310"
 line-length = 120
 select = ["A", "ARG","ASYNC","BLE","C90", "E", "F", "I", "N", "UP032", "W"]
-exclude = ["notebooks/**", "**/*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
-ignore = []
 
 [tool.ruff.lint.isort]
-known-first-party = ["plot_publisherpy"]
+known-first-party = ["plot_publisher"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -120,7 +107,7 @@ line-ending = "auto"
 # ---------------- #
 # Pixi Config      #
 # ---------------- #
-[tool.pixi.workspace]
+[tool.pixi.project]
 channels = [
   "conda-forge",
 ]
@@ -128,15 +115,11 @@ platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
 [tool.pixi.environments]
 default = {features = ["test", "package", "docs", "developer"], solve-group = "default"}
-jupyter = {features = ["developer", "jupyter"], solve-group = "jupyter"}
 
 [tool.pixi.pypi-dependencies]
 plot-publisher = { path = ".", editable = true }
 
-# The dependencies listed below will be prioritized over the ones
-# listed in the [project] section.
 [tool.pixi.dependencies]
-# This will overwrite the dependencies listed in the [project] section
 python = ">=3.10"
 numpy = "*"
 requests = "*"
@@ -146,20 +129,26 @@ plotly = "*"
 # Pixi Tasks      #
 # --------------- #
 [tool.pixi.tasks]
-# Conda packaging tasks
-build-conda = { cmd = "rattler-build build --recipe recipe/recipe.yaml", description = "Build the conda package" }
-# PyPi packaging tasks
+# General
+lint = { cmd = "pre-commit run --all-files", description = "Lint the project" }
+test = { cmd = "pytest", description = "Run the tests" }
+# Build
+build = {depends-on = ["build-conda", "build-pypi"]}
+build-conda = { cmd = "pixi run build-pypi && rattler-build build --recipe recipe/recipe.yaml", description = "Build the conda package" }
 build-pypi = { cmd = "hatch build", description = "Build the package for PyPI" }
-publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package to PyPI", depends-on = ["build-pypi"] }
-publish-pypi-test = { cmd = "twine upload --repository testpypi dist/*", description = "Publish the package to TestPyPI", depends-on = ["build-pypi"] }
-clean-pypi = { cmd = "rm -rf dist", description = "Clean the PyPI build artifacts" }
-# Documentation tasks
+# Docs
+docs = {depends-on = ["build-docs"]}
 build-docs = { cmd = "sphinx-build -b html docs docs/_build", description = "Build the documentation" }
+serve-docs = { cmd = "sphinx-autobuild docs docs/_build", description = "Serve the documentation" }
+# Release
+release = {depends-on = ["build", "publish-pypi", "publish-conda"]}
+publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package to PyPI" }
+publish-conda = { cmd = "pixi upload conda-upload", description = "Publish the package to anaconda.org" }
+# Housekeeping
+clean = {depends-on = ["clean-pypi", "clean-docs", "clean-build"]}
+clean-pypi = { cmd = "rm -rf dist", description = "Clean the PyPI build artifacts" }
 clean-docs = { cmd = "rm -rf docs/_build", description = "Clean the documentation build artifacts" }
-# Testing tasks
-test = { cmd = "pytest", description = "Run the tests" }  # pytest config above takes care of the arguments
-# MISC
-clean-all = { description = "Clean all build artifacts", depends-on = ["clean-pypi", "clean-docs"] }
+clean-build = { cmd = "rm -rf build", description = "Clean the build artifacts" }
 
 # ------------------------------- #
 # Pixi Feature Dependencies       #
@@ -168,12 +157,10 @@ clean-all = { description = "Clean all build artifacts", depends-on = ["clean-py
 pytest = "*"
 pytest-cov = "*"
 pytest-xdist = "*"
-pytest-repeat = "*"
 
 [tool.pixi.feature.package.dependencies]
 rattler-build = "*"
 twine = ">=6.1.0,<7"
-versioningit = "*"
 hatch = "*"
 
 [tool.pixi.feature.developer.dependencies]
@@ -185,8 +172,5 @@ ruff = "*"
 [tool.pixi.feature.docs.dependencies]
 sphinx = ">=8.2.1,<9"
 sphinx_rtd_theme = ">=3.0.1,<4"
-
-[tool.pixi.feature.jupyter.dependencies]
-jupyterlab = "*"
-ipympl = "*"
-ipywidgets = "*"
+myst-parser = "*"
+versioningit = "*"

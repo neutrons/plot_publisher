@@ -5,7 +5,7 @@ import string
 import requests
 import urllib3
 
-from plot_publisherpy.configuration import read_configuration
+from plot_publisher._configuration import read_configuration
 
 
 def _getURL(url_template, instrument, run_number):
