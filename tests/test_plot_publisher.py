@@ -28,7 +28,7 @@ def test_plot1d_success(mock_config):
 
         response = plot1d(
             run_number=123,
-            data_list=[x, y],
+            data_list=[[x, y]],
             instrument="TEST",
             title="Test Plot",
             x_title="X",
@@ -57,7 +57,7 @@ def test_plot1d_server_error(mock_config):
 
         response = plot1d(
             run_number=123,
-            data_list=[x, y],
+            data_list=[[x, y]],
             instrument="TEST",
             title="Test Plot",
             x_title="X",
@@ -78,7 +78,7 @@ def test_plot1d_not_published(mock_config):
     with patch('requests.post') as mock_post:
         response = plot1d(
             run_number=123,
-            data_list=[x, y],
+            data_list=[[x, y]],
             instrument="TEST",
             title="Test Plot",
             x_title="X",
@@ -86,5 +86,5 @@ def test_plot1d_not_published(mock_config):
             publish=False
         )
 
-        assert response is None
+        assert isinstance(response, str)
         mock_post.assert_not_called() 
