@@ -7,7 +7,7 @@ project = 'plot_publisher'
 copyright = '2025, SNS'
 author = 'SNS'
 
-# -- General configuration ---------------------------------------------------
+# -- General configurations ---------------------------------------------------
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
