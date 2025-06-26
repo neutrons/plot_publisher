@@ -1,11 +1,11 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from plot_publisher.plot_publisher import plot1d, read_configuration
+from plot_publisher import plot1d
 
 @pytest.fixture
 def mock_config():
     """Fixture to mock the configuration."""
-    with patch('plot_publisher.plot_publisher.read_configuration') as mock_read_config:
+    with patch('plot_publisher._plot_publisher.read_configuration') as mock_read_config:
         mock_config_obj = MagicMock()
         mock_config_obj.publish_url_template = "http://fake-server.com/publish/${instrument}/${run_number}"
         mock_config_obj.publisher_username = "testuser"

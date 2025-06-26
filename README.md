@@ -9,10 +9,11 @@ This package is intended for use in data reduction scripts at SNS and HFIR. It p
 To use the publisher in your script, you can import it and call one of the plotting functions.
 
 ```python
+import numpy as np
 from plot_publisher import plot1d, publish_plot
 
-# ... your data processing ...
-x = [1, 2, 3, 4]
+# generate some data
+x = np.linspace(0, 10, 100)
 y = [10, 11, 12, 13]
 
 # Generate a 1D plot and publish it
