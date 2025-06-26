@@ -176,4 +176,6 @@ noarch/
 *.swp
 *.swo
 
+# Hatch
+/dist
 src/plot_publisher/_version.py
