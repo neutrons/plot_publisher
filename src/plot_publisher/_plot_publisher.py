@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import logging
-import os
+import re
 import string
+
 import requests
 import urllib3
 
@@ -14,6 +15,42 @@ def _getURL(url_template, instrument, run_number):
     return url
 
 
+def _inject_plotlyjs_version(html_content):
+    """
+    Inject plotlyjs-version attribute into the main div tag of a Plotly HTML div.
+
+    @param html_content: HTML content string containing the plot div
+    @return: Modified HTML content with plotlyjs-version attribute added
+    """
+    try:
+        import plotly
+
+        plotly_version = plotly.__version__
+    except ImportError:
+        logging.warning("Plotly not available, cannot inject version")
+        return html_content
+
+    # Pattern to match the opening div tag (looking for id starting with a UUID-like pattern)
+    # Plotly typically generates divs with ids like "abc123-def4-5678-90ab-cdef12345678"
+    pattern = r'(<div[^>]*id=["\'][^"\']*["\'][^>]*)(>)'
+
+    def add_version_attribute(match):
+        opening_tag = match.group(1)
+        closing_bracket = match.group(2)
+
+        # Check if plotlyjs-version attribute already exists
+        if "plotlyjs-version=" in opening_tag:
+            return match.group(0)  # Return unchanged if attribute already exists
+
+        # Add the plotlyjs-version attribute before the closing bracket
+        return f'{opening_tag} plotlyjs-version="{plotly_version}"{closing_bracket}'
+
+    # Apply the transformation to the first div tag (main plot container)
+    modified_html = re.sub(pattern, add_version_attribute, html_content, count=1)
+
+    return modified_html
+
+
 def publish_plot(instrument, run_number, files, config=None):
     # read the configuration if one isn't provided
     if config is None:
@@ -24,11 +61,20 @@ def publish_plot(instrument, run_number, files, config=None):
     except AttributeError:  # assume that it is a filename
         config = read_configuration(config)
 
+    # Inject plotlyjs-version into HTML content if it's a plot div
+    modified_files = {}
+    for key, content in files.items():
+        if isinstance(content, str) and "<div" in content and "id=" in content:
+            # This looks like an HTML div, inject the version
+            modified_files[key] = _inject_plotlyjs_version(content)
+        else:
+            modified_files[key] = content
+
     run_number = str(run_number)
     url = _getURL(config.publish_url_template, instrument, run_number)
     logging.info("posting to '%s'" % url)
 
-    # these next 2 lines are explicity bad - and doesn't seem
+    # these next 2 lines are explicitly bad - and doesn't seem
     # to do ANYTHING
     # https://urllib3.readthedocs.org/en/latest/security.html
     urllib3.disable_warnings()
@@ -37,14 +83,14 @@ def publish_plot(instrument, run_number, files, config=None):
         response = requests.post(
             url,
             data={"username": config.publisher_username, "password": config.publisher_password},
-            files=files,
+            files=modified_files,
             cert=config.publisher_certificate,
         )
     else:
         response = requests.post(
             url,
             data={"username": config.publisher_username, "password": config.publisher_password},
-            files=files,
+            files=modified_files,
             verify=False,
         )
 
@@ -96,7 +142,7 @@ def plot1d(
             err_x = dict(type="data", array=data_list[3], visible=True)
             if show_dx is False:
                 err_x["thickness"] = 0
-        
+
         data = [go.Scatter(name=label, x=data_list[0], y=data_list[1], error_x=err_x, error_y=err_y)]
     else:
         for i in range(len(data_list)):
@@ -241,4 +287,4 @@ def plot_heatmap(
             logging.exception("Publish plot failed:")
             return None
     else:
-        return plot_div 
+        return plot_div
