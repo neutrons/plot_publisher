@@ -22,6 +22,7 @@ def mock_config():
     )
 
 
+
 def test_plot1d_success(mock_config):
     """
     Test successful 1D plot publishing.
