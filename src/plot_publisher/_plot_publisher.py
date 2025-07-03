@@ -64,8 +64,8 @@ def publish_plot(instrument, run_number, files, config=None):
     # Inject plotlyjs-version into HTML content if it's a plot div
     modified_files = {}
     for key, content in files.items():
-        if isinstance(content, str) and "<div" in content and "id=" in content:
-            # This looks like an HTML div, inject the version
+        if isinstance(content, str) and "<div" in content and "id=" in content and "plotly-graph-div" in content:
+            # This looks like a Plotly HTML div, inject the version
             modified_files[key] = _inject_plotlyjs_version(content)
         else:
             modified_files[key] = content
