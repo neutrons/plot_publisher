@@ -1,15 +1,26 @@
 #!/usr/bin/env python
 import logging
-import re
-import string
 
-import requests
-import urllib3
+logging.basicConfig(level=logging.INFO)  # ← NEW: ensure logging is configured
+import re  # noqa: E402
+import string  # noqa: E402
 
-from plot_publisher._configuration import read_configuration
+import requests  # noqa: E402
+import urllib3  # noqa: E402
+
+from plot_publisher._configuration import read_configuration  # noqa: E402
 
 
 def _getURL(url_template, instrument, run_number):
+    """
+    Substitute *instrument* and *run_number* into the given URL template.
+
+    @param url_template: A ``string.Template`` containing the placeholders
+                         ``${instrument}`` and ``${run_number}``.
+    @param instrument:   Instrument name to inject.
+    @param run_number:   Numeric (or string‐convertible) run identifier.
+    @return: Fully formatted URL.
+    """
     url_template = string.Template(url_template)
     url = url_template.substitute(instrument=instrument, run_number=str(run_number))
     return url
@@ -17,11 +28,15 @@ def _getURL(url_template, instrument, run_number):
 
 def _inject_plotlyjs_version(html_content):
     """
-    Inject plotlyjs-version attribute into the main div tag of a Plotly HTML div.
+    Add a ``plotlyjs-version="<version>"`` attribute to the *first* Plotly ``<div>``
+    found in *html_content*.
 
-    @param html_content: HTML content string containing the plot div
-    @return: Modified HTML content with plotlyjs-version attribute added
+    @param html_content: HTML string that potentially contains Plotly div elements.
+    @return: The (possibly) modified HTML string with the version attribute injected.
+    @raises ValueError: If *html_content* is not a ``str``.
     """
+    if not isinstance(html_content, str):
+        raise ValueError("html_content must be a string")
     try:
         import plotly
 
@@ -52,6 +67,18 @@ def _inject_plotlyjs_version(html_content):
 
 
 def publish_plot(instrument, run_number, files, config=None):
+    """
+    Publish one or more files to the plot server.
+
+    @param instrument: Instrument name.
+    @param run_number: Run number associated with the data.
+    @param files:      ``dict`` of ``{filename: content}``.  HTML strings that look
+                       like Plotly divs will have the Plotly version injected.
+    @param config:     Optional configuration object or path; if *None* the default
+                       configuration is loaded with ``read_configuration()``.
+    @return: ``requests.Response`` object from the POST request.
+    @raises requests.HTTPError: If the server responds with a non-OK status code.
+    """
     # read the configuration if one isn't provided
     if config is None:
         config = read_configuration()
@@ -114,9 +141,23 @@ def plot1d(
     publish=True,
 ):
     """
-    Produce a 1D plot
-    @param data_list: list of traces [ [x1, y1], [x2, y2], ...] or [x, y] or [x, y, error_y] or [x, y, error_y, error_x]
-    @param data_names: name for each trace, for the legend
+    Generate a 1-D Plotly figure (scatter/error) and optionally publish it.
+
+    @param run_number: Run identifier.
+    @param data_list:  See function body for accepted shapes – either a single
+                       trace ``[x, y]`` or a list of traces.
+    @param data_names: Optional legend labels.
+    @param x_title:    X-axis label.
+    @param y_title:    Y-axis label.
+    @param x_log:      Use log scale on X-axis.
+    @param y_log:      Use log scale on Y-axis.
+    @param instrument: Instrument name (used if *publish* is True).
+    @param show_dx:    Show X error bars when present.
+    @param title:      Plot title.
+    @param publish:    If ``True`` the plot is sent to the server via
+                       ``publish_plot``; otherwise the HTML div is returned.
+    @return: ``requests.Response`` when *publish* is True, otherwise the HTML div.
+    @raises RuntimeError: If *data_list* is malformed.
     """
     import plotly.graph_objs as go
     from plotly.offline import plot
@@ -227,7 +268,20 @@ def plot_heatmap(
     publish=True,
 ):
     """
-    Produce a 2D plot
+    Generate a 2-D heat-map (or surface plot) and optionally publish it.
+
+    @param run_number: Run identifier.
+    @param x,y,z:      Grid data for the heat-map/surface.
+    @param x_title:    X-axis label.
+    @param y_title:    Y-axis label.
+    @param surface:    When ``True`` render as 3-D surface.
+    @param x_log:      Log scale for X.
+    @param y_log:      Log scale for Y.
+    @param instrument: Instrument name (used if *publish* is True).
+    @param title:      Plot title.
+    @param publish:    If ``True`` the plot is sent to the server; otherwise the
+                       HTML div is returned.
+    @return: ``requests.Response`` when *publish* is True, otherwise the HTML div.
     """
     import plotly.graph_objs as go
     from plotly.offline import plot
