@@ -1,22 +1,25 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from plot_publisher import plot1d, publish_plot
-from plot_publisher._plot_publisher import _inject_plotlyjs_version
+from plot_publisher._plot_publisher import inject_plotlyjs_version
 
 
 @pytest.fixture
 def mock_config():
     """Fixture to mock the configuration."""
-    with patch("plot_publisher._plot_publisher.read_configuration") as mock_read_config:
-        mock_config_obj = MagicMock()
-        mock_config_obj.publish_url_template = "http://fake-server.com/publish/${instrument}/${run_number}"
-        mock_config_obj.publisher_username = "testuser"
-        mock_config_obj.publisher_password = "testpass"
-        mock_config_obj.publisher_certificate = ""
-        mock_read_config.return_value = mock_config_obj
-        yield mock_read_config
+    # Return a real Configuration object rather than a mock
+    from plot_publisher._configuration import Configuration
+
+    return Configuration(
+        publish_url_template="http://fake-server.com/publish/${instrument}/${run_number}",
+        publisher_username="testuser",
+        publisher_password="testpass",
+        publisher_certificate="",
+        verify_ssl=False,
+    )
 
 
 def test_plot1d_success(mock_config):
@@ -26,7 +29,10 @@ def test_plot1d_success(mock_config):
     x = [1, 2, 3]
     y = [4, 5, 6]
 
-    with patch("requests.post") as mock_post:
+    with (
+        patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
+        patch("requests.post") as mock_post,
+    ):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.text = "Success"
@@ -56,24 +62,26 @@ def test_plot1d_server_error(mock_config):
     x = [1, 2, 3]
     y = [4, 5, 6]
 
-    with patch("requests.post") as mock_post:
+    with (
+        patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
+        patch("requests.post") as mock_post,
+    ):
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
+        mock_response.raise_for_status.side_effect = requests.HTTPError("Server Error")
         mock_post.return_value = mock_response
 
-        response = plot1d(
-            run_number=123,
-            data_list=[[x, y]],
-            instrument="TEST",
-            title="Test Plot",
-            x_title="X",
-            y_title="Y",
-            publish=True,
-        )
-
-        assert response.status_code == 500
-        assert response.text == "Internal Server Error"
+        with pytest.raises(requests.HTTPError):
+            plot1d(
+                run_number=123,
+                data_list=[[x, y]],
+                instrument="TEST",
+                title="Test Plot",
+                x_title="X",
+                y_title="Y",
+                publish=True,
+            )
 
 
 def test_plot1d_not_published(mock_config):
@@ -109,7 +117,7 @@ class TestPlotlyVersionInjection:
         )
 
         with patch("plotly.__version__", "5.15.0"):
-            result = _inject_plotlyjs_version(sample_div)
+            result = inject_plotlyjs_version(sample_div, "5.15.0")
             assert 'plotlyjs-version="5.15.0"' in result
             assert 'id="abc123-def4-5678-90ab-cdef12345678"' in result
 
@@ -121,7 +129,7 @@ class TestPlotlyVersionInjection:
         )
 
         with patch("plotly.__version__", "5.16.1"):
-            result = _inject_plotlyjs_version(sample_div)
+            result = inject_plotlyjs_version(sample_div, "5.16.1")
             assert 'plotlyjs-version="5.16.1"' in result
             assert 'data-test="value"' in result
             assert "Content</div>" in result
@@ -131,7 +139,7 @@ class TestPlotlyVersionInjection:
         sample_div = '<div id="test-div" plotlyjs-version="5.14.0" class="plotly-graph-div"></div>'
 
         with patch("plotly.__version__", "5.15.0"):
-            result = _inject_plotlyjs_version(sample_div)
+            result = inject_plotlyjs_version(sample_div, "5.15.0")
             # Should not change the existing version
             assert 'plotlyjs-version="5.14.0"' in result
             assert 'plotlyjs-version="5.15.0"' not in result
@@ -144,7 +152,7 @@ class TestPlotlyVersionInjection:
         non_div_content = "Just some text content without any div tags"
 
         with patch("plotly.__version__", "5.15.0"):
-            result = _inject_plotlyjs_version(non_div_content)
+            result = inject_plotlyjs_version(non_div_content, "5.15.0")
             # Should return unchanged for non-div content
             assert result == non_div_content
 
@@ -156,7 +164,7 @@ class TestPlotlyVersionInjection:
         """
 
         with patch("plotly.__version__", "5.15.0"):
-            result = _inject_plotlyjs_version(sample_html)
+            result = inject_plotlyjs_version(sample_html, "5.15.0")
             # Only the first div should get the attribute
             lines = result.split("\n")
             first_div_line = next(line for line in lines if "first-div" in line)
@@ -169,7 +177,11 @@ class TestPlotlyVersionInjection:
         """Test that publish_plot correctly injects version into plot divs."""
         sample_div = '<div id="plot-123" class="plotly-graph-div" style="height:400px;">Plot content</div>'
 
-        with patch("requests.post") as mock_post, patch("plotly.__version__", "5.15.0"):
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
+            patch("requests.post") as mock_post,
+            patch("plotly.__version__", "5.15.0"),
+        ):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_post.return_value = mock_response
@@ -188,7 +200,10 @@ class TestPlotlyVersionInjection:
         """Test that publish_plot passes through non-HTML content unchanged."""
         non_html_content = "This is just plain text"
 
-        with patch("requests.post") as mock_post:
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
+            patch("requests.post") as mock_post,
+        ):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_post.return_value = mock_response
@@ -211,7 +226,11 @@ class TestPlotlyVersionInjection:
             "other_plot": '<div id="other-plot" class="plotly-graph-div">Other</div>',
         }
 
-        with patch("requests.post") as mock_post, patch("plotly.__version__", "5.15.0"):
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
+            patch("requests.post") as mock_post,
+            patch("plotly.__version__", "5.15.0"),
+        ):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_post.return_value = mock_response
@@ -226,3 +245,32 @@ class TestPlotlyVersionInjection:
             assert 'plotlyjs-version="5.15.0"' in posted_files["plot"]
             assert 'plotlyjs-version="5.15.0"' in posted_files["other_plot"]
             assert posted_files["data"] == "csv,data,here"  # unchanged
+
+    def test_publish_plot_input_validation(self, mock_config):
+        """Test input validation in publish_plot function."""
+
+        # Test empty instrument
+        with pytest.raises(ValueError, match="instrument must be a non-empty string"):
+            publish_plot(instrument="", run_number=123, files={"test": "content"})
+
+        # Test non-string instrument
+        with pytest.raises(ValueError, match="instrument must be a non-empty string"):
+            publish_plot(instrument=123, run_number=123, files={"test": "content"})
+
+        # Test empty files
+        with pytest.raises(ValueError, match="files must be a non-empty dictionary"):
+            publish_plot(instrument="TEST", run_number=123, files={})
+
+        # Test non-dict files
+        with pytest.raises(ValueError, match="files must be a non-empty dictionary"):
+            publish_plot(instrument="TEST", run_number=123, files="not a dict")
+
+    def test_inject_plotlyjs_version_input_validation(self):
+        """Test input validation for inject_plotlyjs_version function."""
+
+        # Test non-string input
+        with pytest.raises(ValueError, match="html_content must be a string"):
+            inject_plotlyjs_version(123, "5.15.0")
+
+        with pytest.raises(ValueError, match="html_content must be a string"):
+            inject_plotlyjs_version(None, "5.15.0")
