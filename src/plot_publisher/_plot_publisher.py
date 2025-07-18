@@ -27,58 +27,27 @@ def _getURL(url_template: str, instrument: str, run_number: Union[int, str]) -> 
     return url
 
 
-def _inject_plotlyjs_version(html_content: str) -> str:
+def inject_plotlyjs_version(html_content: str, version: Optional[str] = None) -> str:
     """
     Add a ``plotlyjs-version="<version>"`` attribute to the *first* Plotly ``<div>``
     found in *html_content*.
 
     @param html_content: HTML string that potentially contains Plotly div elements.
+    @param version: The plotly.js version to inject. If None, auto-detects from plotly.__version__.
     @return: The (possibly) modified HTML string with the version attribute injected.
     @raises ValueError: If *html_content* is not a ``str``.
     """
     if not isinstance(html_content, str):
         raise ValueError("html_content must be a string")
-    try:
-        import plotly
 
-        plotly_version = plotly.__version__
-    except ImportError:
-        logger.warning("Plotly not available, cannot inject version")
-        return html_content
+    if version is None:
+        try:
+            import plotly
 
-    # Pattern to match the opening div tag (looking for id starting with a UUID-like pattern)
-    # Plotly typically generates divs with ids like "abc123-def4-5678-90ab-cdef12345678"
-    pattern = r'(<div[^>]*id=["\'][^"\']*["\'][^>]*)(>)'
-
-    def add_version_attribute(match):
-        opening_tag = match.group(1)
-        closing_bracket = match.group(2)
-
-        # Check if plotlyjs-version attribute already exists
-        if "plotlyjs-version=" in opening_tag:
-            return match.group(0)  # Return unchanged if attribute already exists
-
-        # Add the plotlyjs-version attribute before the closing bracket
-        return f'{opening_tag} plotlyjs-version="{plotly_version}"{closing_bracket}'
-
-    # Apply the transformation to the first div tag (main plot container)
-    modified_html = re.sub(pattern, add_version_attribute, html_content, count=1)
-
-    return modified_html
-
-
-def inject_plotlyjs_version(html_content: str, version: str) -> str:
-    """
-    Add a ``plotlyjs-version="<version>"`` attribute to the *first* Plotly ``<div>``
-    found in *html_content* with a specific version.
-
-    @param html_content: HTML string that potentially contains Plotly div elements.
-    @param version: The plotly.js version to inject.
-    @return: The (possibly) modified HTML string with the version attribute injected.
-    @raises ValueError: If *html_content* is not a ``str``.
-    """
-    if not isinstance(html_content, str):
-        raise ValueError("html_content must be a string")
+            version = plotly.__version__
+        except ImportError:
+            logger.warning("Plotly not available, cannot inject version")
+            return html_content
 
     # Pattern to match the opening div tag (looking for id starting with a UUID-like pattern)
     # Plotly typically generates divs with ids like "abc123-def4-5678-90ab-cdef12345678"
@@ -145,7 +114,7 @@ def publish_plot(
         if _is_plotly_html_content(content):
             logger.debug("File %s contains plotly content, injecting version", key)
             # This looks like a Plotly HTML div, inject the version
-            modified_files[key] = _inject_plotlyjs_version(content)
+            modified_files[key] = inject_plotlyjs_version(content)
         else:
             logger.debug("File %s does not contain plotly content", key)
             modified_files[key] = content

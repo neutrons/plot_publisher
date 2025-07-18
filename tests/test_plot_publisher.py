@@ -144,6 +144,18 @@ class TestPlotlyVersionInjection:
             assert 'plotlyjs-version="5.14.0"' in result
             assert 'plotlyjs-version="5.15.0"' not in result
 
+    def test_inject_plotlyjs_version_auto_detect(self):
+        """Test auto-detection of plotly version when version=None."""
+        sample_div = (
+            '<div id="abc123-def4-5678-90ab-cdef12345678" class="plotly-graph-div" '
+            'style="height:400px; width:100%;"></div>'
+        )
+
+        with patch("plotly.__version__", "5.17.0"):
+            result = inject_plotlyjs_version(sample_div)  # No version parameter
+            assert 'plotlyjs-version="5.17.0"' in result
+            assert 'id="abc123-def4-5678-90ab-cdef12345678"' in result
+
     # Note: Skipping test for plotly unavailable case due to complexity of mocking dynamic imports
     # The functionality gracefully handles ImportError with proper logging
 
@@ -274,3 +286,28 @@ class TestPlotlyVersionInjection:
 
         with pytest.raises(ValueError, match="html_content must be a string"):
             inject_plotlyjs_version(None, "5.15.0")
+
+    def test_inject_plotlyjs_version_auto_detect(self):  # noqa: F811
+        """Test auto-detection of plotly version when no version parameter is provided."""
+        sample_div = (
+            '<div id="abc123-def4-5678-90ab-cdef12345678" class="plotly-graph-div" '
+            'style="height:400px; width:100%;"></div>'
+        )
+
+        with patch("plotly.__version__", "5.17.0"):
+            result = inject_plotlyjs_version(sample_div)  # No version parameter
+            assert 'plotlyjs-version="5.17.0"' in result
+            assert 'id="abc123-def4-5678-90ab-cdef12345678"' in result
+
+    def test_inject_plotlyjs_version_auto_detect_plotly_unavailable(self):
+        """Test graceful handling when plotly is not available and no version is provided."""
+        sample_div = (
+            '<div id="abc123-def4-5678-90ab-cdef12345678" class="plotly-graph-div" '
+            'style="height:400px; width:100%;"></div>'
+        )
+
+        with patch("builtins.__import__", side_effect=ImportError("No module named 'plotly'")):
+            result = inject_plotlyjs_version(sample_div)  # No version parameter, plotly unavailable
+            # Should return unchanged content
+            assert result == sample_div
+            assert "plotlyjs-version=" not in result
