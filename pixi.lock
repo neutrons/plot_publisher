@@ -2782,8 +2782,8 @@ packages:
   timestamp: 1746710438805
 - pypi: ./
   name: plot-publisher
-  version: 0.1.0
-  sha256: a6ed0d5651415936fc78b4f22d2f99aae1ea197e36d79fd31c44d390f164797b
+  version: 0.2.0.dev37
+  sha256: e6105bf96fa5e46c6dd4bc396135fcb3d1e7c25e50158254821fd5af20b7f1eb
   requires_dist:
   - plotly>5.0.0
   - requests>2.0.0
@@ -2794,7 +2794,7 @@ packages:
   - pytest ; extra == 'test'
   - pytest-cov ; extra == 'test'
   - pytest-xdist ; extra == 'test'
-  requires_python: '>=3.10'
+  requires_python: '>=3.9'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/plotly-6.1.2-pyhd8ed1ab_0.conda
   sha256: ae70322038e849c40a1fb701196c17b62a0b01907d7733a64f4f112e8ebbf39e
