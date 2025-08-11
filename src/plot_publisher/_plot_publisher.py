@@ -33,7 +33,7 @@ def inject_plotlyjs_version(html_content: str, version: Optional[str] = None) ->
     found in *html_content*.
 
     @param html_content: HTML string that potentially contains Plotly div elements.
-    @param version: The plotly.js version to inject. If None, auto-detects from plotly.__version__.
+    @param version: The plotly.js version to inject. If None, auto-detects from get_plotlyjs_version().
     @return: The (possibly) modified HTML string with the version attribute injected.
     @raises ValueError: If *html_content* is not a ``str``.
     """
@@ -42,9 +42,9 @@ def inject_plotlyjs_version(html_content: str, version: Optional[str] = None) ->
 
     if version is None:
         try:
-            import plotly
+            from plotly.offline import get_plotlyjs_version
 
-            version = plotly.__version__
+            version = get_plotlyjs_version()
         except ImportError:
             logger.warning("Plotly not available, cannot inject version")
             return html_content

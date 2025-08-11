@@ -116,9 +116,9 @@ class TestPlotlyVersionInjection:
             'style="height:400px; width:100%;"></div>'
         )
 
-        with patch("plotly.__version__", "5.15.0"):
-            result = inject_plotlyjs_version(sample_div, "5.15.0")
-            assert 'plotlyjs-version="5.15.0"' in result
+        with patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"):
+            result = inject_plotlyjs_version(sample_div, "2.24.1")
+            assert 'plotlyjs-version="2.24.1"' in result
             assert 'id="abc123-def4-5678-90ab-cdef12345678"' in result
 
     def test_inject_plotlyjs_version_complex_div(self):
@@ -128,9 +128,9 @@ class TestPlotlyVersionInjection:
             'style="height:500px; width:80%;" data-test="value">Content</div>'
         )
 
-        with patch("plotly.__version__", "5.16.1"):
-            result = inject_plotlyjs_version(sample_div, "5.16.1")
-            assert 'plotlyjs-version="5.16.1"' in result
+        with patch("plotly.offline.get_plotlyjs_version", return_value="2.25.0"):
+            result = inject_plotlyjs_version(sample_div, "2.25.0")
+            assert 'plotlyjs-version="2.25.0"' in result
             assert 'data-test="value"' in result
             assert "Content</div>" in result
 
@@ -138,11 +138,11 @@ class TestPlotlyVersionInjection:
         """Test that existing plotlyjs-version attribute is not duplicated."""
         sample_div = '<div id="test-div" plotlyjs-version="5.14.0" class="plotly-graph-div"></div>'
 
-        with patch("plotly.__version__", "5.15.0"):
-            result = inject_plotlyjs_version(sample_div, "5.15.0")
+        with patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"):
+            result = inject_plotlyjs_version(sample_div, "2.24.1")
             # Should not change the existing version
             assert 'plotlyjs-version="5.14.0"' in result
-            assert 'plotlyjs-version="5.15.0"' not in result
+            assert 'plotlyjs-version="2.24.1"' not in result
 
     def test_inject_plotlyjs_version_auto_detect(self):
         """Test auto-detection of plotly version when version=None."""
@@ -151,9 +151,9 @@ class TestPlotlyVersionInjection:
             'style="height:400px; width:100%;"></div>'
         )
 
-        with patch("plotly.__version__", "5.17.0"):
+        with patch("plotly.offline.get_plotlyjs_version", return_value="2.26.1"):
             result = inject_plotlyjs_version(sample_div)  # No version parameter
-            assert 'plotlyjs-version="5.17.0"' in result
+            assert 'plotlyjs-version="2.26.1"' in result
             assert 'id="abc123-def4-5678-90ab-cdef12345678"' in result
 
     # Note: Skipping test for plotly unavailable case due to complexity of mocking dynamic imports
@@ -163,8 +163,8 @@ class TestPlotlyVersionInjection:
         """Test behavior with non-div content."""
         non_div_content = "Just some text content without any div tags"
 
-        with patch("plotly.__version__", "5.15.0"):
-            result = inject_plotlyjs_version(non_div_content, "5.15.0")
+        with patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"):
+            result = inject_plotlyjs_version(non_div_content, "2.24.1")
             # Should return unchanged for non-div content
             assert result == non_div_content
 
@@ -175,15 +175,15 @@ class TestPlotlyVersionInjection:
         <div id="second-div" class="plotly-graph-div">Second</div>
         """
 
-        with patch("plotly.__version__", "5.15.0"):
-            result = inject_plotlyjs_version(sample_html, "5.15.0")
+        with patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"):
+            result = inject_plotlyjs_version(sample_html, "2.24.1")
             # Only the first div should get the attribute
             lines = result.split("\n")
             first_div_line = next(line for line in lines if "first-div" in line)
             second_div_line = next(line for line in lines if "second-div" in line)
 
-            assert 'plotlyjs-version="5.15.0"' in first_div_line
-            assert 'plotlyjs-version="5.15.0"' not in second_div_line
+            assert 'plotlyjs-version="2.24.1"' in first_div_line
+            assert 'plotlyjs-version="2.24.1"' not in second_div_line
 
     def test_publish_plot_with_version_injection(self, mock_config):
         """Test that publish_plot correctly injects version into plot divs."""
@@ -192,7 +192,7 @@ class TestPlotlyVersionInjection:
         with (
             patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
             patch("requests.post") as mock_post,
-            patch("plotly.__version__", "5.15.0"),
+            patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"),
         ):
             mock_response = MagicMock()
             mock_response.status_code = 200
@@ -205,7 +205,7 @@ class TestPlotlyVersionInjection:
             call_args = mock_post.call_args
             posted_files = call_args.kwargs["files"]
 
-            assert 'plotlyjs-version="5.15.0"' in posted_files["file"]
+            assert 'plotlyjs-version="2.24.1"' in posted_files["file"]
             assert 'id="plot-123"' in posted_files["file"]
 
     def test_publish_plot_non_html_content(self, mock_config):
@@ -241,7 +241,7 @@ class TestPlotlyVersionInjection:
         with (
             patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
             patch("requests.post") as mock_post,
-            patch("plotly.__version__", "5.15.0"),
+            patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"),
         ):
             mock_response = MagicMock()
             mock_response.status_code = 200
@@ -254,8 +254,8 @@ class TestPlotlyVersionInjection:
             call_args = mock_post.call_args
             posted_files = call_args.kwargs["files"]
 
-            assert 'plotlyjs-version="5.15.0"' in posted_files["plot"]
-            assert 'plotlyjs-version="5.15.0"' in posted_files["other_plot"]
+            assert 'plotlyjs-version="2.24.1"' in posted_files["plot"]
+            assert 'plotlyjs-version="2.24.1"' in posted_files["other_plot"]
             assert posted_files["data"] == "csv,data,here"  # unchanged
 
     def test_publish_plot_input_validation(self, mock_config):
@@ -282,10 +282,10 @@ class TestPlotlyVersionInjection:
 
         # Test non-string input
         with pytest.raises(ValueError, match="html_content must be a string"):
-            inject_plotlyjs_version(123, "5.15.0")
+            inject_plotlyjs_version(123, "2.24.1")
 
         with pytest.raises(ValueError, match="html_content must be a string"):
-            inject_plotlyjs_version(None, "5.15.0")
+            inject_plotlyjs_version(None, "2.24.1")
 
     def test_inject_plotlyjs_version_auto_detect(self):  # noqa: F811
         """Test auto-detection of plotly version when no version parameter is provided."""
@@ -294,9 +294,9 @@ class TestPlotlyVersionInjection:
             'style="height:400px; width:100%;"></div>'
         )
 
-        with patch("plotly.__version__", "5.17.0"):
+        with patch("plotly.offline.get_plotlyjs_version", return_value="2.26.1"):
             result = inject_plotlyjs_version(sample_div)  # No version parameter
-            assert 'plotlyjs-version="5.17.0"' in result
+            assert 'plotlyjs-version="2.26.1"' in result
             assert 'id="abc123-def4-5678-90ab-cdef12345678"' in result
 
     def test_inject_plotlyjs_version_auto_detect_plotly_unavailable(self):
