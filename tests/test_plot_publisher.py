@@ -117,7 +117,7 @@ class TestPlotlyVersionInjection:
         )
 
         with patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"):
-            result = inject_plotlyjs_version(sample_div, "2.24.1")
+            result = inject_plotlyjs_version(sample_div)
             assert 'plotlyjs-version="2.24.1"' in result
             assert 'id="abc123-def4-5678-90ab-cdef12345678"' in result
 
@@ -129,7 +129,7 @@ class TestPlotlyVersionInjection:
         )
 
         with patch("plotly.offline.get_plotlyjs_version", return_value="2.25.0"):
-            result = inject_plotlyjs_version(sample_div, "2.25.0")
+            result = inject_plotlyjs_version(sample_div)
             assert 'plotlyjs-version="2.25.0"' in result
             assert 'data-test="value"' in result
             assert "Content</div>" in result
@@ -139,7 +139,7 @@ class TestPlotlyVersionInjection:
         sample_div = '<div id="test-div" plotlyjs-version="5.14.0" class="plotly-graph-div"></div>'
 
         with patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"):
-            result = inject_plotlyjs_version(sample_div, "2.24.1")
+            result = inject_plotlyjs_version(sample_div)
             # Should not change the existing version
             assert 'plotlyjs-version="5.14.0"' in result
             assert 'plotlyjs-version="2.24.1"' not in result
@@ -164,7 +164,7 @@ class TestPlotlyVersionInjection:
         non_div_content = "Just some text content without any div tags"
 
         with patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"):
-            result = inject_plotlyjs_version(non_div_content, "2.24.1")
+            result = inject_plotlyjs_version(non_div_content)
             # Should return unchanged for non-div content
             assert result == non_div_content
 
@@ -176,12 +176,13 @@ class TestPlotlyVersionInjection:
         """
 
         with patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"):
-            result = inject_plotlyjs_version(sample_html, "2.24.1")
+            result = inject_plotlyjs_version(sample_html)
             # Only the first div should get the attribute
             lines = result.split("\n")
             first_div_line = next(line for line in lines if "first-div" in line)
             second_div_line = next(line for line in lines if "second-div" in line)
 
+            assert 'plotlyjs-version="2.24.1"' in result
             assert 'plotlyjs-version="2.24.1"' in first_div_line
             assert 'plotlyjs-version="2.24.1"' not in second_div_line
 
@@ -282,10 +283,10 @@ class TestPlotlyVersionInjection:
 
         # Test non-string input
         with pytest.raises(ValueError, match="html_content must be a string"):
-            inject_plotlyjs_version(123, "2.24.1")
+            inject_plotlyjs_version(123)
 
         with pytest.raises(ValueError, match="html_content must be a string"):
-            inject_plotlyjs_version(None, "2.24.1")
+            inject_plotlyjs_version(None)
 
     def test_inject_plotlyjs_version_auto_detect(self):  # noqa: F811
         """Test auto-detection of plotly version when no version parameter is provided."""
