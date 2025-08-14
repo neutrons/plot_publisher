@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 import logging
+import re
+import string
+from typing import Dict, List, Optional, Union
 
-logging.basicConfig(level=logging.INFO)  # ← NEW: ensure logging is configured
-import re  # noqa: E402
-import string  # noqa: E402
+import requests
+import urllib3
 
-import requests  # noqa: E402
-import urllib3  # noqa: E402
+from plot_publisher._configuration import Configuration, read_configuration
 
-from plot_publisher._configuration import read_configuration  # noqa: E402
+logger = logging.getLogger(__name__)
 
 
-def _getURL(url_template, instrument, run_number):
+def _getURL(url_template: str, instrument: str, run_number: Union[int, str]) -> str:
     """
     Substitute *instrument* and *run_number* into the given URL template.
 
@@ -26,24 +27,27 @@ def _getURL(url_template, instrument, run_number):
     return url
 
 
-def _inject_plotlyjs_version(html_content):
+def inject_plotlyjs_version(html_content: str, version: Optional[str] = None) -> str:
     """
     Add a ``plotlyjs-version="<version>"`` attribute to the *first* Plotly ``<div>``
     found in *html_content*.
 
     @param html_content: HTML string that potentially contains Plotly div elements.
+    @param version: The plotly.js version to inject. If None, auto-detects from get_plotlyjs_version().
     @return: The (possibly) modified HTML string with the version attribute injected.
     @raises ValueError: If *html_content* is not a ``str``.
     """
     if not isinstance(html_content, str):
         raise ValueError("html_content must be a string")
-    try:
-        import plotly
 
-        plotly_version = plotly.__version__
-    except ImportError:
-        logging.warning("Plotly not available, cannot inject version")
-        return html_content
+    if version is None:
+        try:
+            from plotly.offline import get_plotlyjs_version
+
+            version = get_plotlyjs_version()
+        except ImportError:
+            logger.warning("Plotly not available, cannot inject version")
+            return html_content
 
     # Pattern to match the opening div tag (looking for id starting with a UUID-like pattern)
     # Plotly typically generates divs with ids like "abc123-def4-5678-90ab-cdef12345678"
@@ -58,7 +62,7 @@ def _inject_plotlyjs_version(html_content):
             return match.group(0)  # Return unchanged if attribute already exists
 
         # Add the plotlyjs-version attribute before the closing bracket
-        return f'{opening_tag} plotlyjs-version="{plotly_version}"{closing_bracket}'
+        return f'{opening_tag} plotlyjs-version="{version}"{closing_bracket}'
 
     # Apply the transformation to the first div tag (main plot container)
     modified_html = re.sub(pattern, add_version_attribute, html_content, count=1)
@@ -66,7 +70,9 @@ def _inject_plotlyjs_version(html_content):
     return modified_html
 
 
-def publish_plot(instrument, run_number, files, config=None):
+def publish_plot(
+    instrument: str, run_number: Union[int, str], files: Dict[str, str], config: Optional[Configuration] = None
+) -> requests.Response:
     """
     Publish one or more files to the plot server.
 
@@ -78,68 +84,115 @@ def publish_plot(instrument, run_number, files, config=None):
                        configuration is loaded with ``read_configuration()``.
     @return: ``requests.Response`` object from the POST request.
     @raises requests.HTTPError: If the server responds with a non-OK status code.
+    @raises ValueError: If input parameters are invalid.
     """
+    logger.debug("publish_plot called with instrument=%s, run_number=%s", instrument, run_number)
+
+    # Input validation
+    if not instrument or not isinstance(instrument, str):
+        raise ValueError("instrument must be a non-empty string")
+    if not files or not isinstance(files, dict):
+        raise ValueError("files must be a non-empty dictionary")
+
     # read the configuration if one isn't provided
     if config is None:
+        logger.debug("No config provided, reading default configuration")
         config = read_configuration()
-    # verify that it has an attribute that matters
-    try:
-        config.publish_url_template
-    except AttributeError:  # assume that it is a filename
+    elif isinstance(config, str):
+        # assume that it is a filename
+        logger.debug("Config is string, reading from file: %s", config)
         config = read_configuration(config)
+    elif not isinstance(config, Configuration):
+        raise ValueError("config must be a Configuration object, file path string, or None")
+
+    logger.debug("Using config: %s", config)
 
     # Inject plotlyjs-version into HTML content if it's a plot div
     modified_files = {}
     for key, content in files.items():
-        if isinstance(content, str) and "<div" in content and "id=" in content and "plotly-graph-div" in content:
+        logger.debug("Processing file %s, content type: %s", key, type(content))
+        if _is_plotly_html_content(content):
+            logger.debug("File %s contains plotly content, injecting version", key)
             # This looks like a Plotly HTML div, inject the version
-            modified_files[key] = _inject_plotlyjs_version(content)
+            modified_files[key] = inject_plotlyjs_version(content)
         else:
+            logger.debug("File %s does not contain plotly content", key)
             modified_files[key] = content
+
+    logger.debug("Modified files ready for posting")
 
     run_number = str(run_number)
     url = _getURL(config.publish_url_template, instrument, run_number)
-    logging.info("posting to '%s'" % url)
+    logger.info("posting to '%s'", url)
 
-    # these next 2 lines are explicitly bad - and doesn't seem
-    # to do ANYTHING
-    # https://urllib3.readthedocs.org/en/latest/security.html
-    urllib3.disable_warnings()
+    # Disable only the specific SSL warning we expect, not all warnings
+    try:
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    except AttributeError:
+        # Fallback for older urllib3 versions
+        urllib3.disable_warnings()
+
+    logger.debug("Making HTTP request with verify_ssl=%s", config.verify_ssl)
 
     if config.publisher_certificate:
+        logger.debug("Using certificate authentication")
         response = requests.post(
             url,
             data={"username": config.publisher_username, "password": config.publisher_password},
             files=modified_files,
             cert=config.publisher_certificate,
+            verify=config.verify_ssl,
         )
     else:
+        logger.debug("Using basic authentication without certificate")
         response = requests.post(
             url,
             data={"username": config.publisher_username, "password": config.publisher_password},
             files=modified_files,
-            verify=False,
+            verify=config.verify_ssl,
         )
 
+    logger.debug("HTTP request completed with status code: %d", response.status_code)
+
     if response.status_code != requests.codes.ok:
-        logging.error("Publish plot failed with return code: %d", response.status_code)
+        logger.error("Publish plot failed with return code: %d", response.status_code)
         response.raise_for_status()  # throw requests.HTTPError error with details
     return response
 
 
+def _is_plotly_html_content(content: str) -> bool:
+    """
+    Check if content appears to be Plotly HTML div content.
+
+    @param content: HTML string to check
+    @return: True if content looks like Plotly HTML
+    """
+    if not isinstance(content, str):
+        return False
+
+    # More robust detection of plotly content
+    plotly_indicators = [
+        "<div" in content,
+        "id=" in content,
+        any(indicator in content for indicator in ["plotly-graph-div", "plotly.js", "Plotly.newPlot"]),
+    ]
+
+    return all(plotly_indicators)
+
+
 def plot1d(
-    run_number,
-    data_list,
-    data_names=None,
-    x_title="",
-    y_title="",
-    x_log=False,
-    y_log=False,
-    instrument="",
-    show_dx=True,
-    title="",
-    publish=True,
-):
+    run_number: Union[int, str],
+    data_list: Union[List[float], List[List[float]]],
+    data_names: Optional[List[str]] = None,
+    x_title: str = "",
+    y_title: str = "",
+    x_log: bool = False,
+    y_log: bool = False,
+    instrument: str = "",
+    show_dx: bool = True,
+    title: str = "",
+    publish: bool = True,
+) -> Union[requests.Response, str]:
     """
     Generate a 1-D Plotly figure (scatter/error) and optionally publish it.
 
@@ -246,9 +299,9 @@ def plot1d(
     if publish:
         try:
             return publish_plot(instrument, run_number, files={"file": plot_div})
-        except:  # noqa: E722
-            logging.exception("Publish plot failed:")
-            return None
+        except Exception as e:
+            logger.exception("Publish plot failed: %s", e)
+            raise  # Re-raise the exception instead of returning None
     else:
         return plot_div
 
@@ -337,8 +390,8 @@ def plot_heatmap(
     if publish:
         try:
             return publish_plot(instrument, run_number, files={"file": plot_div})
-        except:  # noqa: E722
-            logging.exception("Publish plot failed:")
-            return None
+        except Exception as e:
+            logger.exception("Publish plot failed: %s", e)
+            raise  # Re-raise the exception instead of returning None
     else:
         return plot_div

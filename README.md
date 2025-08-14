@@ -38,11 +38,13 @@ The file should contain the following JSON structure with the appropriate values
     "publish_url_template": "https://server.com/live/publish/${instrument}/${run_number}",
     "publisher_username": "username",
     "publisher_password": "password",
-    "publisher_certificate": ""
+    "publisher_certificate": "",
+    "verify_ssl": true
 }
 ```
 
 - `publish_url_template`: The URL template for posting plot data. `${instrument}` and `${run_number}` will be substituted.
 - `publisher_username`: The username for authentication.
 - `publisher_password`: The password for authentication.
-- `publisher_certificate`: (Optional) Path to a client certificate for authentication. 
+- `publisher_certificate`: (Optional) Path to a client certificate for authentication.
+- `verify_ssl`: (Optional) Whether to verify SSL certificates. Defaults to `true`. Set to `false` only for development/testing environments.
