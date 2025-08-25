@@ -382,11 +382,10 @@ def plot_heatmap(
     )
 
     if surface:
-        plot_type = "surface"
+        trace = go.Surface(z=z, x=x, y=y)
     else:
-        plot_type = "heatmap"
+        trace = go.Heatmap(z=z, x=x, y=y)
 
-    trace = go.Heatmap(z=z, x=x, y=y, type=plot_type)
     fig = go.Figure(data=[trace], layout=layout)
 
     plot_div = plot(fig, output_type="div", include_plotlyjs=False, show_link=False)
