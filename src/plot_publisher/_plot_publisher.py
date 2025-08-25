@@ -42,16 +42,16 @@ def inject_plotlyjs_version(html_content: str, version: Optional[str] = None) ->
 
     if version is None:
         try:
-            from plotly.offline import get_plotlyjs_version
+            import plotly
 
-            version = get_plotlyjs_version()
+            version = plotly.__version__
         except ImportError:
             logger.warning("Plotly not available, cannot inject version")
             return html_content
 
-    # Pattern to match the opening div tag (looking for id starting with a UUID-like pattern)
-    # Plotly typically generates divs with ids like "abc123-def4-5678-90ab-cdef12345678"
-    pattern = r'(<div[^>]*id=["\'][^"\']*["\'][^>]*)(>)'
+    # Pattern to match any opening div tag with class="plotly-graph-div"
+    # This is more specific to plotly divs and should be more reliable
+    pattern = r'(<div[^>]*class=["\'][^"\']*plotly-graph-div[^"\']*["\'][^>]*)(>)'
 
     def add_version_attribute(match):
         opening_tag = match.group(1)
@@ -301,7 +301,7 @@ def plot1d(
             return publish_plot(instrument, run_number, files={"file": plot_div})
         except Exception as e:
             logger.exception("Publish plot failed: %s", e)
-            raise  # Re-raise the exception instead of returning None
+            return None  # Return None when publishing fails
     else:
         return plot_div
 
@@ -392,6 +392,6 @@ def plot_heatmap(
             return publish_plot(instrument, run_number, files={"file": plot_div})
         except Exception as e:
             logger.exception("Publish plot failed: %s", e)
-            raise  # Re-raise the exception instead of returning None
+            return None  # Return None when publishing fails
     else:
         return plot_div
