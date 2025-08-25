@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from plot_publisher import plot1d, publish_plot
+from plot_publisher import plot1d, plot_heatmap, publish_plot
 from plot_publisher._plot_publisher import inject_plotlyjs_version
 
 
@@ -312,3 +312,359 @@ class TestPlotlyVersionInjection:
             # Should return unchanged content
             assert result == sample_div
             assert "plotlyjs-version=" not in result
+
+
+# Additional tests for coverage improvement
+class TestAdditionalCoverage:
+    """Additional tests to improve code coverage."""
+
+    def test_publish_plot_config_string_path(self, mock_config):
+        """Test publish_plot with string configuration path."""
+        sample_div = '<div id="plot-123" class="plotly-graph-div">Plot content</div>'
+
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration") as mock_read_config,
+            patch("requests.post") as mock_post,
+            patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"),
+        ):
+            mock_read_config.return_value = mock_config
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_post.return_value = mock_response
+
+            publish_plot(instrument="TEST", run_number=456, files={"file": sample_div}, config="/path/to/config.cfg")
+
+            # Verify read_configuration was called with the string path
+            mock_read_config.assert_called_with("/path/to/config.cfg")
+
+    def test_publish_plot_invalid_config_type(self):
+        """Test publish_plot with invalid configuration type."""
+        sample_div = '<div id="plot-123" class="plotly-graph-div">Plot content</div>'
+
+        with pytest.raises(ValueError, match="config must be a Configuration object"):
+            publish_plot(instrument="TEST", run_number=456, files={"file": sample_div}, config=123)
+
+    def test_publish_plot_certificate_auth(self, mock_config):
+        """Test publish_plot with certificate authentication."""
+        sample_div = '<div id="plot-123" class="plotly-graph-div">Plot content</div>'
+
+        # Set up config with certificate
+        mock_config.publisher_certificate = "/path/to/cert.pem"
+
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
+            patch("requests.post") as mock_post,
+            patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"),
+        ):
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_post.return_value = mock_response
+
+            publish_plot(instrument="TEST", run_number=456, files={"file": sample_div})
+
+            # Verify certificate was used in the request
+            mock_post.assert_called_once()
+            call_kwargs = mock_post.call_args.kwargs
+            assert "cert" in call_kwargs
+            assert call_kwargs["cert"] == "/path/to/cert.pem"
+
+    def test_publish_plot_urllib3_fallback(self, mock_config):
+        """Test urllib3 warning disable fallback for older versions."""
+        sample_div = '<div id="plot-123" class="plotly-graph-div">Plot content</div>'
+
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
+            patch("requests.post") as mock_post,
+            patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"),
+            patch("urllib3.disable_warnings") as mock_disable_warnings,
+        ):
+            # Simulate AttributeError to trigger fallback
+            mock_disable_warnings.side_effect = [AttributeError("No InsecureRequestWarning"), None]
+
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_post.return_value = mock_response
+
+            publish_plot(instrument="TEST", run_number=456, files={"file": sample_div})
+
+            # Verify fallback was called
+            assert mock_disable_warnings.call_count == 2
+
+    def test_is_plotly_html_content_non_string(self):
+        """Test _is_plotly_html_content with non-string input."""
+        from plot_publisher._plot_publisher import _is_plotly_html_content
+
+        assert not _is_plotly_html_content(None)
+        assert not _is_plotly_html_content(123)
+        assert not _is_plotly_html_content([])
+        assert not _is_plotly_html_content({})
+
+    def test_plot1d_invalid_data_list(self, mock_config):
+        """Test plot1d with invalid data_list parameter."""
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            with pytest.raises(RuntimeError, match="data_list parameter is expected to be a list"):
+                plot1d(run_number=123, data_list="not a list", instrument="TEST", publish=False)
+
+    def test_plot1d_malformed_data_traces(self, mock_config):
+        """Test plot1d with malformed data traces."""
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            # Test with invalid trace (not a list)
+            with pytest.raises(RuntimeError, match="data_list\\[0\\] should be a list"):
+                plot1d(run_number=123, data_list=["invalid"], instrument="TEST", publish=False)
+
+            # Test with insufficient data (less than [x, y])
+            with pytest.raises(RuntimeError, match="data_list\\[0\\] should be a list with at least"):
+                plot1d(run_number=123, data_list=[[1]], instrument="TEST", publish=False)
+
+    def test_plot1d_multiple_traces_with_names(self, mock_config):
+        """Test plot1d with multiple traces and data names."""
+        x1, y1 = [1, 2, 3], [1, 4, 9]
+        x2, y2 = [1, 2, 3], [2, 8, 18]
+
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            result = plot1d(
+                run_number=123,
+                data_list=[[x1, y1], [x2, y2]],
+                data_names=["Trace 1", "Trace 2"],
+                instrument="TEST",
+                publish=False,
+            )
+
+            assert isinstance(result, str)
+            assert "plotly-graph-div" in result
+
+    def test_plot1d_with_error_bars(self, mock_config):
+        """Test plot1d with error bars (dx and dy)."""
+        x = [1, 2, 3]
+        y = [1, 4, 9]
+        dy = [0.1, 0.2, 0.3]
+        dx = [0.05, 0.1, 0.15]
+
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            # Test with multiple trace format [[x, y, dy, dx]]
+            result = plot1d(run_number=123, data_list=[[x, y, dy, dx]], instrument="TEST", show_dx=True, publish=False)
+
+            assert isinstance(result, str)
+            assert "plotly-graph-div" in result
+
+    def test_plot1d_hide_dx_error_bars(self, mock_config):
+        """Test plot1d with dx error bars hidden."""
+        x = [1, 2, 3]
+        y = [1, 4, 9]
+        dy = [0.1, 0.2, 0.3]
+        dx = [0.05, 0.1, 0.15]
+
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            # Test with multiple trace format [[x, y, dy, dx]]
+            result = plot1d(
+                run_number=123,
+                data_list=[[x, y, dy, dx]],
+                instrument="TEST",
+                show_dx=False,  # Hide x error bars
+                publish=False,
+            )
+
+            assert isinstance(result, str)
+            assert "plotly-graph-div" in result
+
+    def test_plot1d_log_scales(self, mock_config):
+        """Test plot1d with logarithmic scales."""
+        x = [1, 10, 100]
+        y = [1, 100, 10000]
+
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            result = plot1d(
+                run_number=123, data_list=[[x, y]], instrument="TEST", x_log=True, y_log=True, publish=False
+            )
+
+            assert isinstance(result, str)
+            assert "plotly-graph-div" in result
+
+    def test_plot1d_other_exception(self, mock_config):
+        """Test plot1d with non-HTTP exception during publishing."""
+        x = [1, 2, 3]
+        y = [1, 4, 9]
+
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
+            patch("plot_publisher._plot_publisher.publish_plot") as mock_publish,
+        ):
+            # Simulate a non-HTTP exception
+            mock_publish.side_effect = ValueError("Some other error")
+
+            result = plot1d(run_number=123, data_list=[[x, y]], instrument="TEST", publish=True)
+
+            # Should return None for non-HTTP exceptions
+            assert result is None
+
+    def test_plot_heatmap_basic(self, mock_config):
+        """Test basic plot_heatmap functionality."""
+        x = [1, 2, 3]
+        y = [1, 2, 3]
+        z = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            result = plot_heatmap(run_number=123, x=x, y=y, z=z, instrument="TEST", publish=False)
+
+            assert isinstance(result, str)
+            assert "plotly-graph-div" in result
+
+    def test_plot_heatmap_surface(self, mock_config):
+        """Test plot_heatmap with surface plot."""
+        x = [1, 2, 3]
+        y = [1, 2, 3]
+        z = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            result = plot_heatmap(
+                run_number=123,
+                x=x,
+                y=y,
+                z=z,
+                instrument="TEST",
+                surface=True,  # Enable surface plot
+                publish=False,
+            )
+
+            assert isinstance(result, str)
+            assert "plotly-graph-div" in result
+
+    def test_plot_heatmap_log_scales(self, mock_config):
+        """Test plot_heatmap with logarithmic scales."""
+        x = [1, 10, 100]
+        y = [1, 10, 100]
+        z = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            result = plot_heatmap(
+                run_number=123, x=x, y=y, z=z, instrument="TEST", x_log=True, y_log=True, publish=False
+            )
+
+            assert isinstance(result, str)
+            assert "plotly-graph-div" in result
+
+    def test_plot_heatmap_published(self, mock_config):
+        """Test plot_heatmap with publishing enabled."""
+        x = [1, 2, 3]
+        y = [1, 2, 3]
+        z = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
+            patch("requests.post") as mock_post,
+            patch("plotly.offline.get_plotlyjs_version", return_value="2.24.1"),
+        ):
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_post.return_value = mock_response
+
+            response = plot_heatmap(
+                run_number=123,
+                x=x,
+                y=y,
+                z=z,
+                instrument="TEST",
+                title="Heatmap Test",
+                x_title="X Axis",
+                y_title="Y Axis",
+                publish=True,
+            )
+
+            assert response.status_code == 200
+            mock_post.assert_called_once()
+
+    def test_plot_heatmap_http_error(self, mock_config):
+        """Test plot_heatmap with HTTP error during publishing."""
+        x = [1, 2, 3]
+        y = [1, 2, 3]
+        z = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
+            patch("requests.post") as mock_post,
+        ):
+            mock_response = MagicMock()
+            mock_response.status_code = 500
+            mock_response.raise_for_status.side_effect = requests.HTTPError("Server Error")
+            mock_post.return_value = mock_response
+
+            with pytest.raises(requests.HTTPError):
+                plot_heatmap(run_number=123, x=x, y=y, z=z, instrument="TEST", publish=True)
+
+    def test_plot_heatmap_other_exception(self, mock_config):
+        """Test plot_heatmap with non-HTTP exception during publishing."""
+        x = [1, 2, 3]
+        y = [1, 2, 3]
+        z = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config),
+            patch("plot_publisher._plot_publisher.publish_plot") as mock_publish,
+        ):
+            # Simulate a non-HTTP exception
+            mock_publish.side_effect = ValueError("Some other error")
+
+            result = plot_heatmap(run_number=123, x=x, y=y, z=z, instrument="TEST", publish=True)
+
+            # Should return None for non-HTTP exceptions
+            assert result is None
+
+    def test_plot1d_single_trace_format_with_tuples(self, mock_config):
+        """Test plot1d with single trace format using tuples instead of lists."""
+        # Use tuples to trigger the single trace path (isinstance(data_list[0], list) == False)
+        x = (1, 2, 3)
+        y = (1, 4, 9)
+        dy = (0.1, 0.2, 0.3)
+        dx = (0.05, 0.1, 0.15)
+
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            # Test with single trace format using tuples
+            result = plot1d(
+                run_number=123,
+                data_list=[x, y, dy, dx],  # tuples instead of lists
+                data_names=["Single Trace"],
+                instrument="TEST",
+                show_dx=True,
+                publish=False,
+            )
+
+            assert isinstance(result, str)
+            assert "plotly-graph-div" in result
+
+    def test_plot1d_single_trace_y_errors_only(self, mock_config):
+        """Test plot1d single trace with only y error bars."""
+        x = (1, 2, 3)
+        y = (1, 4, 9)
+        dy = (0.1, 0.2, 0.3)
+
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            # Test with single trace format using tuples, only y errors
+            result = plot1d(
+                run_number=123,
+                data_list=[x, y, dy],  # Only x, y, dy (no dx)
+                instrument="TEST",
+                publish=False,
+            )
+
+            assert isinstance(result, str)
+            assert "plotly-graph-div" in result
+
+    def test_plot1d_single_trace_hide_dx_errors(self, mock_config):
+        """Test plot1d single trace with hidden dx error bars."""
+        x = (1, 2, 3)
+        y = (1, 4, 9)
+        dy = (0.1, 0.2, 0.3)
+        dx = (0.05, 0.1, 0.15)
+
+        with patch("plot_publisher._plot_publisher.read_configuration", return_value=mock_config):
+            # Test with show_dx=False to cover the thickness=0 line
+            result = plot1d(
+                run_number=123,
+                data_list=[x, y, dy, dx],
+                instrument="TEST",
+                show_dx=False,  # This should trigger err_x["thickness"] = 0
+                publish=False,
+            )
+
+            assert isinstance(result, str)
+            assert "plotly-graph-div" in result
