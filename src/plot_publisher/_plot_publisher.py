@@ -42,9 +42,9 @@ def inject_plotlyjs_version(html_content: str, version: Optional[str] = None) ->
 
     if version is None:
         try:
-            import plotly
+            from plotly.offline import get_plotlyjs_version
 
-            version = plotly.__version__
+            version = get_plotlyjs_version()
         except ImportError:
             logger.warning("Plotly not available, cannot inject version")
             return html_content
@@ -299,9 +299,12 @@ def plot1d(
     if publish:
         try:
             return publish_plot(instrument, run_number, files={"file": plot_div})
+        except requests.HTTPError:
+            logger.error("Publish plot failed: HTTP error from server")
+            raise  # Re-raise HTTPError so callers can handle it
         except Exception as e:
-            logger.exception("Publish plot failed: %s", e)
-            return None  # Return None when publishing fails
+            logger.error("Publish plot failed: %s", e)
+            return None  # Return None for other exceptions
     else:
         return plot_div
 
@@ -390,8 +393,11 @@ def plot_heatmap(
     if publish:
         try:
             return publish_plot(instrument, run_number, files={"file": plot_div})
+        except requests.HTTPError:
+            logger.error("Publish plot failed: HTTP error from server")
+            raise  # Re-raise HTTPError so callers can handle it
         except Exception as e:
-            logger.exception("Publish plot failed: %s", e)
-            return None  # Return None when publishing fails
+            logger.error("Publish plot failed: %s", e)
+            return None  # Return None for other exceptions
     else:
         return plot_div
