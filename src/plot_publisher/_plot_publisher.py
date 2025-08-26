@@ -302,9 +302,9 @@ def plot1d(
         except requests.HTTPError:
             logger.error("Publish plot failed: HTTP error from server")
             raise  # Re-raise HTTPError so callers can handle it
-        except Exception as e:
+        except (RuntimeError, Exception) as e:
             logger.error("Publish plot failed: %s", e)
-            return None  # Return None for other exceptions
+            return None  # Return None for configuration and other exceptions
     else:
         return plot_div
 
@@ -395,8 +395,8 @@ def plot_heatmap(
         except requests.HTTPError:
             logger.error("Publish plot failed: HTTP error from server")
             raise  # Re-raise HTTPError so callers can handle it
-        except Exception as e:
+        except (RuntimeError, Exception) as e:
             logger.error("Publish plot failed: %s", e)
-            return None  # Return None for other exceptions
+            return None  # Return None for configuration and other exceptions
     else:
         return plot_div

@@ -668,3 +668,36 @@ class TestAdditionalCoverage:
 
             assert isinstance(result, str)
             assert "plotly-graph-div" in result
+
+    def test_plot1d_configuration_error_backward_compatibility(self, mock_config):
+        """Test that configuration errors return None for backward compatibility."""
+        x = [1, 2, 3]
+        y = [1, 4, 9]
+
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration") as mock_read_config,
+        ):
+            # Simulate configuration error (like missing config file)
+            mock_read_config.side_effect = RuntimeError("Failed to find Configuration file")
+
+            result = plot1d(run_number=123, data_list=[[x, y]], instrument="TEST", publish=True)
+
+            # Should return None for configuration errors (backward compatibility)
+            assert result is None
+
+    def test_plot_heatmap_configuration_error_backward_compatibility(self, mock_config):
+        """Test that configuration errors return None for backward compatibility."""
+        x = [1, 2, 3]
+        y = [1, 2, 3]
+        z = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+        with (
+            patch("plot_publisher._plot_publisher.read_configuration") as mock_read_config,
+        ):
+            # Simulate configuration error (like missing config file)
+            mock_read_config.side_effect = RuntimeError("Failed to find Configuration file")
+
+            result = plot_heatmap(run_number=123, x=x, y=y, z=z, instrument="TEST", publish=True)
+
+            # Should return None for configuration errors (backward compatibility)
+            assert result is None
