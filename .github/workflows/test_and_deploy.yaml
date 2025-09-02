@@ -55,9 +55,9 @@ jobs:
 
       - name: Build conda package
         run: |
-          pixi run build-conda
-          mkdir -p /tmp/local-channel/noarch
-          cp output/noarch/*.conda /tmp/local-channel/noarch
+          pixi run conda-build
+          mkdir -p /tmp/local-channel/linux-64
+          cp *.conda /tmp/local-channel/linux-64
 
       - name: Verify conda package
         uses: neutrons/conda-verify@main
@@ -70,7 +70,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifact-conda-package
-          path: output/noarch/${{ env.PKG_NAME }}-*.conda
+          path: ${{ env.PKG_NAME }}-*.conda
 
   publish:
     name: Upload package to anaconda
