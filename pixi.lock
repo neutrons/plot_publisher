@@ -3818,8 +3818,8 @@ packages:
   timestamp: 1756227402815
 - pypi: ./
   name: plot-publisher
-  version: 0.2.0.dev44
-  sha256: c019ee792e9aa5aab0a2ea13396c03d395f4b3b28fb32e1ffe2afd4d34438691
+  version: 0.2.0.dev45
+  sha256: 73e232ccaf4f76bad962cbd2369e61d4b9cf0dc45f19ca7a710fe4749aaa11d9
   requires_dist:
   - plotly>5.0.0
   - requests>2.0.0

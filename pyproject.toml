@@ -45,7 +45,6 @@ source = "versioningit"
 [tool.hatch.build.hooks.versioningit-onbuild]
 source-file = "src/plot_publisher/_version.py"
 build-file = "plot_publisher/_version.py"
-replacement = '"{next_version}"'
 
 [tool.hatch.build]
 artifacts = [
