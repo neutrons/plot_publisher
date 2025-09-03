@@ -1,9 +1,0 @@
-output/
-bld/
-**/__pycache__/
-**/*.pyc
-.git/
-dist/
-*.egg-info/
-.pytest_cache/
-htmlcov/
