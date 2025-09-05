@@ -173,10 +173,6 @@ build = {depends-on = ["conda-build", "build-pypi"]}
 docs = {depends-on = ["build-docs"]}
 build-docs = { cmd = "sphinx-build -b html docs docs/_build", description = "Build the documentation" }
 serve-docs = { cmd = "sphinx-autobuild docs docs/_build", description = "Serve the documentation" }
-# Release
-conda-publish = { cmd = "anaconda upload *.conda", description = "Publish the package to anaconda.org", depends-on = ["conda-build"] }
-publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package to PyPI", depends-on = ["build-pypi"] }
-release = {depends-on = ["build", "publish-pypi", "conda-publish"]}
 # Housekeeping
 clean-conda = { cmd = "rm -f *.conda", description = "Clean the conda build artifacts" }
 clean-pypi = { cmd = "rm -rf dist", description = "Clean the PyPI build artifacts" }
