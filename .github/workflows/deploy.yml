@@ -2,6 +2,8 @@ name: Deploy
 
 on:
   workflow_dispatch:
+  push:
+    tags: ["v*"]
 
 jobs:
   deploy:
@@ -22,4 +24,4 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
-          pixi run release 
+          pixi run release
