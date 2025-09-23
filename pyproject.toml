@@ -186,10 +186,9 @@ clean-docs = { cmd = "rm -rf docs/_build", description = "Clean the documentatio
 clean-build = { cmd = "rm -rf build", description = "Clean the build artifacts" }
 clean = {depends-on = ["clean-conda", "clean-pypi", "clean-docs", "clean-build"]}
 # Release
-release = { description = "Full release: build and publish to both conda and PyPI", depends-on = [
-  "build",
-  "conda-publish",
-  "pypi-publish"
+# Note: PyPI publishing is handled by GitHub Actions using trusted publishing
+conda-release = { description = "Build and publish conda package", depends-on = [
+  "conda-publish"
 ] }
 
 # ------------------------------- #
