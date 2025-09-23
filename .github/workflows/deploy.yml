@@ -6,7 +6,7 @@ on:
     tags: ["v*"]
 
 jobs:
-  deploy:
+  conda-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,10 +18,34 @@ jobs:
         with:
           pixi-version: v0.48.1
 
-      - name: Build and Publish
+      - name: Build and Publish Conda Package
+        env:
+          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+        run: |
+          pixi run conda-publish
+
+  pypi-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.8.8
+        with:
+          pixi-version: v0.48.1
+
+      - name: Build and Publish PyPI Package
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
-          pixi run release
+          pixi run build-pypi
+          # Only publish to PyPI if token is available
+          if [ -n "$TWINE_PASSWORD" ]; then
+            echo "PyPI token found, publishing to PyPI..."
+            pixi run pypi-publish
+          else
+            echo "No PyPI token found, skipping PyPI publishing"
+          fi
