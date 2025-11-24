@@ -45,7 +45,6 @@ source = "versioningit"
 [tool.hatch.build.hooks.versioningit-onbuild]
 source-file = "src/plot_publisher/_version.py"
 build-file = "plot_publisher/_version.py"
-replacement = '"{next_version}"'
 
 [tool.hatch.build]
 artifacts = [
@@ -64,8 +63,12 @@ method = "minor"
 
 [tool.versioningit.format]
 distance = "{next_version}.dev{distance}"
-dirty = "{version}+d{build_date:%Y%m%d}"
-distance-dirty = "{next_version}.dev{distance}+d{build_date:%Y%m%d%H%M}"
+# Since pixi builds currently require the package version to be set statically in pyproject.toml,
+# and we solve that by temporarily changing pyproject.toml during build using the pixi tasks
+# sync-version and reset-toml, then we need to ignore uncommitted changes in order for the wheel
+# version to be consistent with the package version
+dirty = "{version}"
+distance-dirty = "{next_version}.dev{distance}"
 
 [tool.versioningit.write]
 file = "src/plot_publisher/_version.py"
@@ -107,9 +110,11 @@ line-ending = "auto"
 # ---------------- #
 # Pixi Config      #
 # ---------------- #
-[tool.pixi.project]
+[tool.pixi.workspace]
+preview = ["pixi-build"]  # Required until the build feature becomes stable
 channels = [
   "conda-forge",
+  "https://prefix.dev/pixi-build-backends",  # Required for pixi build
 ]
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
@@ -118,12 +123,31 @@ default = {features = ["test", "package", "docs", "developer"], solve-group = "d
 
 [tool.pixi.pypi-dependencies]
 plot-publisher = { path = ".", editable = true }
+toml-cli = "*"  # Required for sync-version task
 
 [tool.pixi.dependencies]
 python = ">=3.9"
 numpy = "*"
 requests = "*"
 plotly = "*"
+
+# Pixi Build configuration for conda packaging
+[tool.pixi.package.host-dependencies]
+hatchling = "*"
+versioningit = "*"
+
+[tool.pixi.package.run-dependencies]
+python = ">=3.9"
+numpy = "*"
+requests = "*"
+plotly = "*"
+
+[tool.pixi.package]
+name = "plot-publisher"
+version = "0.0.0"  # placeholder, overwritten by sync-version
+
+[tool.pixi.package.build]
+backend = { name = "pixi-build-python", version = "0.1.*" }
 
 # --------------- #
 # Pixi Tasks      #
@@ -132,23 +156,40 @@ plotly = "*"
 # General
 lint = { cmd = "pre-commit run --all-files", description = "Lint the project" }
 test = { cmd = "pytest", description = "Run the tests" }
-# Build
-build = {depends-on = ["build-conda", "build-pypi"]}
-build-conda = { cmd = "pixi run build-pypi && rattler-build build --recipe recipe/recipe.yaml", description = "Build the conda package" }
+# Build - Python Project Template approach
+sync-version = 'version=$(python -m versioningit); toml set tool.pixi.package.version "$version" --toml-path pyproject.toml'
+backup-toml = "cp pyproject.toml pyproject.toml.bak"
+reset-toml = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.bak"
+conda-build-command = "pixi build"
+conda-build = { description = "Build the conda package", depends-on = [
+  "backup-toml",
+  "sync-version",
+  "conda-build-command",
+  "reset-toml",
+] }
 build-pypi = { cmd = "hatch build", description = "Build the package for PyPI" }
+pypi-publish = { cmd = "twine upload dist/*", description = "Publish the package to PyPI", depends-on = [
+  "build-pypi",
+] }
+conda-publish = { cmd = "anaconda upload *.conda", description = "Publish the .conda package to anaconda.org", depends-on = [
+  "conda-build",
+] }
+build = {depends-on = ["conda-build", "build-pypi"]}
 # Docs
 docs = {depends-on = ["build-docs"]}
 build-docs = { cmd = "sphinx-build -b html docs docs/_build", description = "Build the documentation" }
 serve-docs = { cmd = "sphinx-autobuild docs docs/_build", description = "Serve the documentation" }
-# Release
-release = {depends-on = ["build", "publish-pypi", "publish-conda"]}
-publish-pypi = { cmd = "twine upload dist/*", description = "Publish the package to PyPI" }
-publish-conda = { cmd = "pixi upload conda-upload", description = "Publish the package to anaconda.org" }
 # Housekeeping
-clean = {depends-on = ["clean-pypi", "clean-docs", "clean-build"]}
+clean-conda = { cmd = "rm -f *.conda", description = "Clean the conda build artifacts" }
 clean-pypi = { cmd = "rm -rf dist", description = "Clean the PyPI build artifacts" }
 clean-docs = { cmd = "rm -rf docs/_build", description = "Clean the documentation build artifacts" }
 clean-build = { cmd = "rm -rf build", description = "Clean the build artifacts" }
+clean = {depends-on = ["clean-conda", "clean-pypi", "clean-docs", "clean-build"]}
+# Release
+# Note: PyPI publishing is handled by GitHub Actions using trusted publishing
+conda-release = { description = "Build and publish conda package", depends-on = [
+  "conda-publish"
+] }
 
 # ------------------------------- #
 # Pixi Feature Dependencies       #
@@ -159,9 +200,9 @@ pytest-cov = "*"
 pytest-xdist = "*"
 
 [tool.pixi.feature.package.dependencies]
-rattler-build = "*"
 twine = ">=6.1.0,<7"
 hatch = "*"
+anaconda-client = "*"
 
 [tool.pixi.feature.developer.dependencies]
 pip = "*"

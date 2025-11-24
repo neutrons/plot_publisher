@@ -49,9 +49,9 @@ def inject_plotlyjs_version(html_content: str, version: Optional[str] = None) ->
             logger.warning("Plotly not available, cannot inject version")
             return html_content
 
-    # Pattern to match the opening div tag (looking for id starting with a UUID-like pattern)
-    # Plotly typically generates divs with ids like "abc123-def4-5678-90ab-cdef12345678"
-    pattern = r'(<div[^>]*id=["\'][^"\']*["\'][^>]*)(>)'
+    # Pattern to match any opening div tag with class="plotly-graph-div"
+    # This is more specific to plotly divs and should be more reliable
+    pattern = r'(<div[^>]*class=["\'][^"\']*plotly-graph-div[^"\']*["\'][^>]*)(>)'
 
     def add_version_attribute(match):
         opening_tag = match.group(1)
@@ -299,9 +299,12 @@ def plot1d(
     if publish:
         try:
             return publish_plot(instrument, run_number, files={"file": plot_div})
+        except requests.HTTPError:
+            logger.error("Publish plot failed: HTTP error from server")
+            raise  # Re-raise HTTPError so callers can handle it
         except Exception as e:
-            logger.exception("Publish plot failed: %s", e)
-            raise  # Re-raise the exception instead of returning None
+            logger.error("Publish plot failed: %s", e)
+            return None  # Return None for other exceptions
     else:
         return plot_div
 
@@ -379,19 +382,21 @@ def plot_heatmap(
     )
 
     if surface:
-        plot_type = "surface"
+        trace = go.Surface(z=z, x=x, y=y)
     else:
-        plot_type = "heatmap"
+        trace = go.Heatmap(z=z, x=x, y=y)
 
-    trace = go.Heatmap(z=z, x=x, y=y, type=plot_type)
     fig = go.Figure(data=[trace], layout=layout)
 
     plot_div = plot(fig, output_type="div", include_plotlyjs=False, show_link=False)
     if publish:
         try:
             return publish_plot(instrument, run_number, files={"file": plot_div})
+        except requests.HTTPError:
+            logger.error("Publish plot failed: HTTP error from server")
+            raise  # Re-raise HTTPError so callers can handle it
         except Exception as e:
-            logger.exception("Publish plot failed: %s", e)
-            raise  # Re-raise the exception instead of returning None
+            logger.error("Publish plot failed: %s", e)
+            return None  # Return None for other exceptions
     else:
         return plot_div
