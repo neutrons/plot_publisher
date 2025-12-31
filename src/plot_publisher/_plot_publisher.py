@@ -322,6 +322,7 @@ def plot_heatmap(
     instrument="",
     title="",
     publish=True,
+    colorscale="Jet",
 ):
     """
     Generate a 2-D heat-map (or surface plot) and optionally publish it.
@@ -337,6 +338,7 @@ def plot_heatmap(
     @param title:      Plot title.
     @param publish:    If ``True`` the plot is sent to the server; otherwise the
                        HTML div is returned.
+    @param colorscale: Colorscale for the heatmap. Default is "Jet".
     @return: ``requests.Response`` when *publish* is True, otherwise the HTML div.
     """
     import plotly.graph_objs as go
@@ -384,7 +386,7 @@ def plot_heatmap(
     if surface:
         trace = go.Surface(z=z, x=x, y=y)
     else:
-        trace = go.Heatmap(z=z, x=x, y=y)
+        trace = go.Heatmap(z=z, x=x, y=y, colorscale=colorscale)
 
     fig = go.Figure(data=[trace], layout=layout)
 
