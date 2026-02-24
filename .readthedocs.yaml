@@ -5,9 +5,9 @@ build:
   tools:
     python: "mambaforge-22.9"
   jobs:
-    pre_build:
+    pre_install:
       - "pip install pixi==0.48.1"
+    post_install:
       - "pixi install --environment default"
-
-sphinx:
-  configuration: docs/conf.py
+    post_build:
+      - "pixi run -e default sphinx-build -b html docs $READTHEDOCS_OUTPUT/html"
