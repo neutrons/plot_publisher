@@ -478,3 +478,101 @@ def plot_heatmap(
             return None  # Return None for other exceptions
     else:
         return plot_div
+
+
+def extract_heatmap_data(plot_div: str) -> List[List]:
+    """
+    Extract data from a Plotly HTML div produced by :func:`plot_heatmap` and
+    reconstruct the original ``x``, ``y``, ``z`` arrays.
+
+    @param plot_div: HTML div string produced by :func:`plot_heatmap` with
+                    ``publish=False``.
+    @return: ``[x, y, z]`` where each element is a plain Python list
+             (``z`` is a list of rows).
+    @raises ValueError: If *plot_div* is not a string, contains no recognisable
+                        Plotly data, cannot be JSON-parsed, has no traces, or the
+                        first trace contains no ``z`` data.
+    """
+    if not isinstance(plot_div, str):
+        raise ValueError("plot_div must be a string")
+
+    pattern = r"Plotly\.(?:newPlot|react)\s*\([^,]+,\s*(\[)"
+    match = re.search(pattern, plot_div, re.DOTALL)
+    if not match:
+        raise ValueError("No Plotly data found in the provided div")
+
+    array_start = match.start(1)
+    try:
+        traces, _ = json.JSONDecoder().raw_decode(plot_div, array_start)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Failed to parse Plotly JSON data: {exc}") from exc
+
+    if not isinstance(traces, list) or len(traces) == 0:
+        raise ValueError("No traces found in Plotly data")
+
+    trace = traces[0]
+    if not isinstance(trace, dict):
+        raise ValueError("No traces found in Plotly data")
+
+    if "z" not in trace:
+        raise ValueError("No z data found in trace; the div may not be a heatmap or surface plot")
+
+    x = list(trace.get("x", []))
+    y = list(trace.get("y", []))
+    z = [list(row) for row in trace["z"]]
+
+    return [x, y, z]
+
+
+def extract_data(plot_div: str) -> List[List]:
+    """
+    Extract data from a Plotly HTML div produced by :func:`plot1d` or
+    :func:`plot_heatmap` and return it in the original input format.
+
+    The plot type is detected automatically by inspecting the first trace:
+
+    * **Heatmap / surface** (first trace contains a ``z`` key) – delegates to
+      :func:`extract_heatmap_data` and returns ``[x, y, z]`` where
+
+      - ``x`` – plain Python list of X-axis values
+      - ``y`` – plain Python list of Y-axis values
+      - ``z`` – list of rows, each row a plain Python list of Z values
+
+    * **1-D scatter** (no ``z`` key) – delegates to :func:`extract_plot1d_data`
+      and returns a list of traces ``[[x, y, ...], ...]`` where each trace is
+
+      - ``[x, y]``         – no error bars
+      - ``[x, y, dy]``     – Y error bars only
+      - ``[x, y, dy, dx]`` – both Y and X error bars
+
+    All arrays are plain Python lists.  Error bar arrays in 1D plots are always returned
+    regardless of their ``visible`` flag.
+
+    @param plot_div: HTML div string produced by :func:`plot1d` or
+                    :func:`plot_heatmap` with ``publish=False``.
+    @return: ``[x, y, z]`` for heatmap / surface plots, or
+             ``[[x, y, ...], ...]`` for 1-D scatter plots.
+    @raises ValueError: If *plot_div* is not a string, contains no recognisable
+                        Plotly data, cannot be JSON-parsed, or has no traces.
+    """
+    if not isinstance(plot_div, str):
+        raise ValueError("plot_div must be a string")
+
+    pattern = r"Plotly\.(?:newPlot|react)\s*\([^,]+,\s*(\[)"
+    match = re.search(pattern, plot_div, re.DOTALL)
+    if not match:
+        raise ValueError("No Plotly data found in the provided div")
+
+    array_start = match.start(1)
+    try:
+        traces, _ = json.JSONDecoder().raw_decode(plot_div, array_start)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Failed to parse Plotly JSON data: {exc}") from exc
+
+    if not isinstance(traces, list) or len(traces) == 0 or not isinstance(traces[0], dict):
+        raise ValueError("No traces found in Plotly data")
+
+    if "z" in traces[0]:
+        return extract_heatmap_data(plot_div)
+    return extract_plot1d_data(plot_div)
+
