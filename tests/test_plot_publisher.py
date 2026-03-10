@@ -5,7 +5,10 @@ import requests
 
 from plot_publisher import plot1d, plot_heatmap, publish_plot
 from plot_publisher._plot_publisher import (
-    extract_data, extract_heatmap_data, extract_plot1d_data, inject_plotlyjs_version
+    extract_data,
+    extract_heatmap_data,
+    extract_plot1d_data,
+    inject_plotlyjs_version,
 )
 
 
