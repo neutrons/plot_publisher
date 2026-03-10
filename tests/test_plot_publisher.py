@@ -851,7 +851,7 @@ class TestExtractHeatmapData:
 class TestExtractData:
     """Test suite for the extract_data dispatcher function."""
 
-    def test_invalide_input(self):
+    def test_invalid_input(self):
         """ValueError is raised for non-string inputs."""
         with pytest.raises(ValueError, match="plot_div must be a string"):
             extract_data(None)
