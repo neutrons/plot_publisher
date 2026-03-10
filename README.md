@@ -1,5 +1,11 @@
 # Plot Publisher
 
+<!-- Badges -->
+
+[![Documentation Status](https://readthedocs.org/projects/plot-publisher/badge/?version=latest)](https://plot-publisher.readthedocs.io/en/latest/?badge=latest)
+[![codecov](https://codecov.io/gh/neutrons/plot_publisher/branch/main/graph/badge.svg)](https://codecov.io/gh/neutrons/plot_publisher/tree/main)
+
+
 A utility to publish plotly plots as HTML `div` elements to the Live Data Server.
 
 This package is intended for use in data reduction scripts at SNS and HFIR. It provides a simple interface to generate and publish plots to the monitoring webpages.
