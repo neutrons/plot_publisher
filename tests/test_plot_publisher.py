@@ -4,7 +4,7 @@ import pytest
 import requests
 
 from plot_publisher import plot1d, plot_heatmap, publish_plot
-from plot_publisher._plot_publisher import inject_plotlyjs_version
+from plot_publisher._plot_publisher import extract_plot1d_data, inject_plotlyjs_version
 
 
 @pytest.fixture
@@ -668,3 +668,105 @@ class TestAdditionalCoverage:
 
             assert isinstance(result, str)
             assert "plotly-graph-div" in result
+
+
+class TestExtractPlot1dData:
+    """Test suite for extract_plot1d_data functionality."""
+    @staticmethod
+    def _make_div(data_list, **kwargs):
+        """Return a plot1d div (publish=False) for the given data_list."""
+        return plot1d(run_number=1, data_list=data_list, publish=False, **kwargs)
+
+    def test_invalid_input(self):
+        with pytest.raises(ValueError, match="plot_div must be a string"):
+            extract_plot1d_data(None)
+        with pytest.raises(ValueError, match="plot_div must be a string"):
+            extract_plot1d_data(42)
+        with pytest.raises(ValueError, match="plot_div must be a string"):
+            extract_plot1d_data(["<div></div>"])
+
+        with pytest.raises(ValueError, match="No Plotly data found in the provided div"):
+            extract_plot1d_data("<div><p>Hello world</p></div>")
+        with pytest.raises(ValueError, match="No Plotly data found in the provided div"):
+            extract_plot1d_data("")
+        bad_div = (
+            '<div id="x" class="plotly-graph-div"></div>'
+            "<script>Plotly.newPlot('x', [{ INVALID JSON }], {})</script>"
+        )
+        with pytest.raises(ValueError, match="Failed to parse Plotly JSON data"):
+            extract_plot1d_data(bad_div)
+
+    def test_single_trace_xy_only(self):
+        """Round-trip [x, y] – no error bars."""
+        x = [1.0, 2.0, 3.0]
+        y = [4.0, 5.0, 6.0]
+        div = self._make_div([[x, y]])
+        result = extract_plot1d_data(div)
+        assert len(result) == 1
+        rx, ry = result[0]
+        assert rx == pytest.approx(x)
+        assert ry == pytest.approx(y)
+
+    def test_single_trace_with_dy(self):
+        """Round-trip [x, y, dy] – Y error bars only."""
+        x = [1.0, 2.0, 3.0]
+        y = [1.0, 4.0, 9.0]
+        dy = [0.1, 0.2, 0.3]
+        div = self._make_div([[x, y, dy]])
+        result = extract_plot1d_data(div)
+        assert len(result) == 1
+        rx, ry, rdy = result[0]
+        assert rx == pytest.approx(x)
+        assert ry == pytest.approx(y)
+        assert rdy == pytest.approx(dy)
+
+    def test_single_trace_with_dy_dx(self):
+        """Round-trip [x, y, dy, dx] – both error bars."""
+        x = [1.0, 2.0, 3.0]
+        y = [1.0, 4.0, 9.0]
+        dy = [0.1, 0.2, 0.3]
+        dx = [0.05, 0.10, 0.15]
+        div = self._make_div([[x, y, dy, dx]])
+        result = extract_plot1d_data(div)
+        assert len(result) == 1
+        rx, ry, rdy, rdx = result[0]
+        assert rx == pytest.approx(x)
+        assert ry == pytest.approx(y)
+        assert rdy == pytest.approx(dy)
+        assert rdx == pytest.approx(dx)
+
+    def test_multiple_traces(self):
+        """Round-trip with two traces."""
+        x1, y1 = [1.0, 2.0, 3.0], [1.0, 4.0, 9.0]
+        x2, y2 = [10.0, 20.0, 30.0], [2.0, 8.0, 18.0]
+        div = self._make_div([[x1, y1], [x2, y2]])
+        result = extract_plot1d_data(div)
+        assert len(result) == 2
+        assert result[0][0] == pytest.approx(x1)
+        assert result[0][1] == pytest.approx(y1)
+        assert result[1][0] == pytest.approx(x2)
+        assert result[1][1] == pytest.approx(y2)
+
+    def test_multiple_traces_with_errors(self):
+        """Round-trip with two traces, each carrying dy and dx."""
+        x1, y1 = [1.0, 2.0], [3.0, 4.0]
+        dy1, dx1 = [0.1, 0.2], [0.01, 0.02]
+        x2, y2 = [5.0, 6.0], [7.0, 8.0]
+        dy2, dx2 = [0.3, 0.4], [0.03, 0.04]
+        div = self._make_div([[x1, y1, dy1, dx1], [x2, y2, dy2, dx2]])
+        result = extract_plot1d_data(div)
+        assert len(result) == 2
+        assert result[0] == [pytest.approx(x1), pytest.approx(y1), pytest.approx(dy1), pytest.approx(dx1)]
+        assert result[1] == [pytest.approx(x2), pytest.approx(y2), pytest.approx(dy2), pytest.approx(dx2)]
+
+    def test_error_bars_extracted_when_show_dx_false(self):
+        """dx array is returned even when show_dx=False hides the bars visually."""
+        x = [1.0, 2.0, 3.0]
+        y = [1.0, 4.0, 9.0]
+        dy = [0.1, 0.2, 0.3]
+        dx = [0.05, 0.10, 0.15]
+        div = self._make_div([[x, y, dy, dx]], show_dx=False)
+        result = extract_plot1d_data(div)
+        assert len(result) == 1
+        rx, ry, rdy, rdx = result[0]
+        assert rdx == pytest.approx(dx)
