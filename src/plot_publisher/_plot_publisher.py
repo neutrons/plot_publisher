@@ -12,6 +12,11 @@ from plot_publisher._configuration import Configuration, read_configuration
 
 logger = logging.getLogger(__name__)
 
+# Type aliases for plot data return shapes
+Plot1DDataHint = List[List[List]]  # [[x, y, ...], ...]  – one sub-list per trace
+HeatmapDataHint = List[List]       # [x, y, z]           – exactly three sub-lists
+PlotDataHint = Union[Plot1DDataHint, HeatmapDataHint]
+
 
 def _getURL(url_template: str, instrument: str, run_number: Union[int, str]) -> str:
     """
@@ -310,7 +315,7 @@ def plot1d(
         return plot_div
 
 
-def extract_plot1d_data(plot_div: str) -> List[List[List]]:
+def extract_plot1d_data(plot_div: str) -> Plot1DDataHint:
     """
     Extract data from a Plotly HTML div produced by :func:`plot1d` and reconstruct
     the original ``[[x, y, dy, dx], ...]`` input format.
@@ -480,7 +485,7 @@ def plot_heatmap(
         return plot_div
 
 
-def extract_heatmap_data(plot_div: str) -> List[List]:
+def extract_heatmap_data(plot_div: str) -> HeatmapDataHint:
     """
     Extract data from a Plotly HTML div produced by :func:`plot_heatmap` and
     reconstruct the original ``x``, ``y``, ``z`` arrays.
@@ -524,7 +529,7 @@ def extract_heatmap_data(plot_div: str) -> List[List]:
     return [x, y, z]
 
 
-def extract_data(plot_div: str) -> List[List]:
+def extract_data(plot_div: str) -> PlotDataHint:
     """
     Extract data from a Plotly HTML div produced by :func:`plot1d` or
     :func:`plot_heatmap` and return it in the original input format.
