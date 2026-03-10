@@ -315,14 +315,14 @@ def extract_plot1d_data(plot_div: str) -> List[List[List]]:
     Extract data from a Plotly HTML div produced by :func:`plot1d` and reconstruct
     the original ``[[x, y, dy, dx], ...]`` input format.
 
-    Each trace is returned as a plain-Python-list tuple of arrays:
+    Each trace is returned as a plain Python list of lists:
 
     * ``[x, y]``            – when no error bars are present
     * ``[x, y, dy]``        – when only Y error bars are present
     * ``[x, y, dy, dx]``    – when both X and Y error bars are present
 
     Error bar arrays are always extracted regardless of their ``visible`` flag.
-    All arrays are returned as plain Python lists.
+    All values are returned as plain Python lists.
 
     @param plot_div: HTML div string produced by :func:`plot1d` with
                     ``publish=False``.
