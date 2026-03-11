@@ -354,7 +354,7 @@ def extract_plot1d_data(plot_div: str) -> Plot1DDataHint:
     Error bar arrays are always extracted regardless of their ``visible`` flag.
     All values are returned as plain Python lists.
 
-    The original ``x``, ``y``, and ``z`` inputs to :func:`plot_heatmap` may have
+    The original ``x``, ``y``, and ``z`` inputs to :func:`plot1d` may have
     been plain Python lists or NumPy arrays (including 2-D arrays for ``z``).
     Regardless of the original type, all returned values are plain Python lists.
 
