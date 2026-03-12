@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 import requests
 
@@ -776,6 +777,87 @@ class TestExtractPlot1dData:
         rx, ry, rdy, rdx = result[0]
         assert rdx == pytest.approx(dx)
 
+    def test_single_trace_xy_numpy(self):
+        """Round-trip [x, y] with numpy arrays."""
+        x = np.linspace(0.0, 2.0, 4)
+        y = np.array([1.0, 2.0, 4.0, 8.0])
+        div = self._make_div([[x, y]])
+        result = extract_plot1d_data(div)
+        assert len(result) == 1
+        rx, ry = result[0]
+        assert isinstance(rx, list)
+        assert isinstance(ry, list)
+        assert rx == pytest.approx(x.tolist())
+        assert ry == pytest.approx(y.tolist())
+
+    def test_single_trace_with_dy_numpy(self):
+        """Round-trip [x, y, dy] with numpy arrays – Y error bars only."""
+        x = np.linspace(1.0, 3.0, 3)
+        y = np.array([1.0, 4.0, 9.0])
+        dy = np.array([0.1, 0.2, 0.3])
+        div = self._make_div([[x, y, dy]])
+        result = extract_plot1d_data(div)
+        assert len(result) == 1
+        rx, ry, rdy = result[0]
+        assert isinstance(rdy, list)
+        assert rx == pytest.approx(x.tolist())
+        assert ry == pytest.approx(y.tolist())
+        assert rdy == pytest.approx(dy.tolist())
+
+    def test_single_trace_with_dy_dx_numpy(self):
+        """Round-trip [x, y, dy, dx] with numpy arrays – both error bars."""
+        x = np.linspace(1.0, 3.0, 3)
+        y = np.array([1.0, 4.0, 9.0])
+        dy = np.array([0.1, 0.2, 0.3])
+        dx = np.array([0.05, 0.10, 0.15])
+        div = self._make_div([[x, y, dy, dx]])
+        result = extract_plot1d_data(div)
+        assert len(result) == 1
+        rx, ry, rdy, rdx = result[0]
+        assert isinstance(rdx, list)
+        assert rx == pytest.approx(x.tolist())
+        assert ry == pytest.approx(y.tolist())
+        assert rdy == pytest.approx(dy.tolist())
+        assert rdx == pytest.approx(dx.tolist())
+
+    def test_multiple_traces_numpy(self):
+        """Round-trip with two traces using numpy arrays."""
+        x1 = np.linspace(0.0, 1.0, 3)
+        y1 = np.array([0.0, 0.5, 1.0])
+        x2 = np.linspace(10.0, 20.0, 3)
+        y2 = np.array([100.0, 150.0, 200.0])
+        div = self._make_div([[x1, y1], [x2, y2]])
+        result = extract_plot1d_data(div)
+        assert len(result) == 2
+        assert isinstance(result[0][0], list)
+        assert isinstance(result[1][1], list)
+        assert result[0][0] == pytest.approx(x1.tolist())
+        assert result[0][1] == pytest.approx(y1.tolist())
+        assert result[1][0] == pytest.approx(x2.tolist())
+        assert result[1][1] == pytest.approx(y2.tolist())
+
+    def test_multiple_traces_with_errors_numpy(self):
+        """Round-trip with two traces carrying dy and dx as numpy arrays."""
+        x1 = np.linspace(1.0, 2.0, 2)
+        y1 = np.array([3.0, 4.0])
+        dy1 = np.array([0.1, 0.2])
+        dx1 = np.array([0.01, 0.02])
+        x2 = np.linspace(5.0, 6.0, 2)
+        y2 = np.array([7.0, 8.0])
+        dy2 = np.array([0.3, 0.4])
+        dx2 = np.array([0.03, 0.04])
+        div = self._make_div([[x1, y1, dy1, dx1], [x2, y2, dy2, dx2]])
+        result = extract_plot1d_data(div)
+        assert len(result) == 2
+        assert result[0][0] == pytest.approx(x1.tolist())
+        assert result[0][1] == pytest.approx(y1.tolist())
+        assert result[0][2] == pytest.approx(dy1.tolist())
+        assert result[0][3] == pytest.approx(dx1.tolist())
+        assert result[1][0] == pytest.approx(x2.tolist())
+        assert result[1][1] == pytest.approx(y2.tolist())
+        assert result[1][2] == pytest.approx(dy2.tolist())
+        assert result[1][3] == pytest.approx(dx2.tolist())
+
 
 class TestExtractHeatmapData:
     """Test suite for extract_heatmap_data functionality."""
@@ -850,6 +932,46 @@ class TestExtractHeatmapData:
         for row, expected_row in zip(rz, z):
             assert row == pytest.approx(expected_row)
 
+    def test_heatmap_round_trip_all_numpy(self):
+        """Round-trip when x, y, and z are all numpy arrays."""
+        x = np.array([90.0, 2.0, 3])
+        y = np.array([0.0, 1.0, 2])
+        z = np.array([[1.0, 4.0, 9.0], [2.0, 8.0, 18.0]])
+        div = self._make_div(x, y, z)
+        rx, ry, rz = extract_heatmap_data(div)
+        assert isinstance(rx, list)
+        assert isinstance(ry, list)
+        assert isinstance(rz, list)
+        assert rx == pytest.approx(x.tolist())
+        assert ry == pytest.approx(y.tolist())
+        for row, expected_row in zip(rz, z.tolist()):
+            assert row == pytest.approx(expected_row)
+
+    def test_heatmap_round_trip_numpy_linspace(self):
+        """Round-trip with numpy linspace arrays for x, y, and a computed z grid."""
+        x = np.linspace(0.0, 1.0, 5)
+        y = np.linspace(-1.0, 1.0, 4)
+        z = np.outer(y, x)  # 4x5 grid
+        div = self._make_div(x, y, z)
+        rx, ry, rz = extract_heatmap_data(div)
+        assert rx == pytest.approx(x.tolist())
+        assert ry == pytest.approx(y.tolist())
+        assert len(rz) == len(z)
+        for row, expected_row in zip(rz, z.tolist()):
+            assert row == pytest.approx(expected_row)
+
+    def test_heatmap_round_trip_mixed_numpy_lists(self):
+        """Round-trip with numpy arrays for x and y but plain lists for z."""
+        x = np.linspace(1.0, 3.0, 3)
+        y = np.linspace(4.0, 5.0, 2)
+        z = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]  # plain list
+        div = self._make_div(x, y, z)
+        rx, ry, rz = extract_heatmap_data(div)
+        assert rx == pytest.approx(x.tolist())
+        assert ry == pytest.approx(y.tolist())
+        for row, expected_row in zip(rz, z):
+            assert row == pytest.approx(expected_row)
+
 
 class TestExtractData:
     """Test suite for the extract_data dispatcher function."""
@@ -873,59 +995,88 @@ class TestExtractData:
         with pytest.raises(ValueError, match="Failed to parse Plotly JSON data"):
             extract_data(bad_div)
 
-    def test_dispatches_to_plot1d_xy(self):
+    @pytest.mark.parametrize("use_numpy", [False, True])
+    def test_dispatches_to_plot1d_xy(self, use_numpy):
         """Delegates to extract_plot1d_data for a basic [x, y] plot."""
         x, y = [1.0, 2.0, 3.0], [4.0, 5.0, 6.0]
+        if use_numpy:
+            x, y = np.array(x), np.array(y)
         div = plot1d(run_number=1, data_list=[[x, y]], publish=False)
         result = extract_data(div)
         assert len(result) == 1
-        assert result[0][0] == pytest.approx(x)
-        assert result[0][1] == pytest.approx(y)
+        assert result[0][0] == pytest.approx(list(x))
+        assert result[0][1] == pytest.approx(list(y))
+        if use_numpy:
+            assert isinstance(result[0][0], list)
+            assert isinstance(result[0][1], list)
 
-    def test_dispatches_to_plot1d_with_errors(self):
+    @pytest.mark.parametrize("use_numpy", [False, True])
+    def test_dispatches_to_plot1d_with_errors(self, use_numpy):
         """Delegates to extract_plot1d_data for a plot with dy and dx."""
         x, y = [1.0, 2.0, 3.0], [1.0, 4.0, 9.0]
         dy, dx = [0.1, 0.2, 0.3], [0.05, 0.10, 0.15]
+        if use_numpy:
+            x, y, dy, dx = np.array(x), np.array(y), np.array(dy), np.array(dx)
         div = plot1d(run_number=1, data_list=[[x, y, dy, dx]], publish=False)
         result = extract_data(div)
         assert len(result) == 1
         rx, ry, rdy, rdx = result[0]
-        assert rx == pytest.approx(x)
-        assert ry == pytest.approx(y)
-        assert rdy == pytest.approx(dy)
-        assert rdx == pytest.approx(dx)
+        assert rx == pytest.approx(list(x))
+        assert ry == pytest.approx(list(y))
+        assert rdy == pytest.approx(list(dy))
+        assert rdx == pytest.approx(list(dx))
+        if use_numpy:
+            assert all(isinstance(v, list) for v in (rx, ry, rdy, rdx))
 
-    def test_dispatches_to_plot1d_multiple_traces(self):
+    @pytest.mark.parametrize("use_numpy", [False, True])
+    def test_dispatches_to_plot1d_multiple_traces(self, use_numpy):
         """Delegates to extract_plot1d_data for multiple traces."""
         x1, y1 = [1.0, 2.0], [3.0, 4.0]
         x2, y2 = [5.0, 6.0], [7.0, 8.0]
+        if use_numpy:
+            x1, y1, x2, y2 = np.array(x1), np.array(y1), np.array(x2), np.array(y2)
         div = plot1d(run_number=1, data_list=[[x1, y1], [x2, y2]], publish=False)
         result = extract_data(div)
         assert len(result) == 2
-        assert result[0][0] == pytest.approx(x1)
-        assert result[1][0] == pytest.approx(x2)
+        assert result[0][0] == pytest.approx(list(x1))
+        assert result[1][0] == pytest.approx(list(x2))
+        if use_numpy:
+            assert isinstance(result[0][0], list)
+            assert isinstance(result[1][0], list)
 
-    def test_dispatches_to_heatmap(self):
+    @pytest.mark.parametrize("use_numpy", [False, True])
+    def test_dispatches_to_heatmap(self, use_numpy):
         """Delegates to extract_heatmap_data for a heatmap plot."""
         x = [1.0, 2.0, 3.0]
         y = [4.0, 5.0]
         z = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+        if use_numpy:
+            x, y, z = np.array(x), np.array(y), np.array(z)
         div = plot_heatmap(run_number=1, x=x, y=y, z=z, publish=False)
         rx, ry, rz = extract_data(div)
-        assert rx == pytest.approx(x)
-        assert ry == pytest.approx(y)
-        for row, expected_row in zip(rz, z):
+        z_list = z.tolist() if use_numpy else z
+        assert rx == pytest.approx(list(x))
+        assert ry == pytest.approx(list(y))
+        for row, expected_row in zip(rz, z_list):
             assert row == pytest.approx(expected_row)
+        if use_numpy:
+            assert all(isinstance(v, list) for v in (rx, ry, rz))
 
-    def test_dispatches_to_surface(self):
+    @pytest.mark.parametrize("use_numpy", [False, True])
+    def test_dispatches_to_surface(self, use_numpy):
         """Delegates to extract_heatmap_data for a surface plot."""
         x = [0.0, 1.0, 2.0]
         y = [0.0, 1.0]
         z = [[1.0, 4.0, 9.0], [2.0, 8.0, 18.0]]
+        if use_numpy:
+            x, y, z = np.array(x), np.array(y), np.array(z)
         div = plot_heatmap(run_number=1, x=x, y=y, z=z, surface=True, publish=False)
         rx, ry, rz = extract_data(div)
-        assert rx == pytest.approx(x)
-        assert ry == pytest.approx(y)
-        for row, expected_row in zip(rz, z):
+        z_list = z.tolist() if use_numpy else z
+        assert rx == pytest.approx(list(x))
+        assert ry == pytest.approx(list(y))
+        for row, expected_row in zip(rz, z_list):
             assert row == pytest.approx(expected_row)
+        if use_numpy:
+            assert all(isinstance(v, list) for v in (rx, ry, rz))
 

@@ -1,10 +1,12 @@
 #!/usr/bin/env python
+import base64
 import json
 import logging
 import re
 import string
 from typing import Dict, List, Optional, Union
 
+import numpy as np
 import requests
 import urllib3
 
@@ -186,6 +188,29 @@ def _is_plotly_html_content(content: str) -> bool:
     return all(plotly_indicators)
 
 
+def _decode_plotly_array(value):
+    """
+    Decode a Plotly array value, handling both plain lists and binary-encoded arrays.
+
+    Plotly may serialize numpy arrays as {'bdata': '<base64>', 'dtype': '<dtype>'}
+    or 2-D arrays as {'bdata': '<base64>', 'dtype': '<dtype>', 'shape': 'rows, cols'}.
+
+    @param value: Either a plain list or a Plotly binary-encoded dict.
+    @return: Plain Python list of values (or list of lists for 2-D arrays).
+    """
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict) and "bdata" in value and "dtype" in value:
+        raw = base64.b64decode(value["bdata"])
+        arr = np.frombuffer(raw, dtype=value["dtype"])
+        if "shape" in value:
+            shape = tuple(int(s) for s in value["shape"].split(","))
+            arr = arr.reshape(shape)
+            return arr.tolist()
+        return arr.tolist()
+    return list(value) if value else []
+
+
 def plot1d(
     run_number: Union[int, str],
     data_list: Union[List[float], List[List[float]]],
@@ -329,6 +354,10 @@ def extract_plot1d_data(plot_div: str) -> Plot1DDataHint:
     Error bar arrays are always extracted regardless of their ``visible`` flag.
     All values are returned as plain Python lists.
 
+    The original ``x``, ``y``, and ``z`` inputs to :func:`plot1d` may have
+    been plain Python lists or NumPy arrays (including 2-D arrays for ``z``).
+    Regardless of the original type, all returned values are plain Python lists.
+
     @param plot_div: HTML div string produced by :func:`plot1d` with
                     ``publish=False``.
     @return: List of traces, where each trace is ``[x, y]``, ``[x, y, dy]``,
@@ -363,19 +392,19 @@ def extract_plot1d_data(plot_div: str) -> Plot1DDataHint:
         if not isinstance(trace, dict):
             continue
 
-        x = list(trace.get("x", []))
-        y = list(trace.get("y", []))
+        x = _decode_plotly_array(trace.get("x", []))
+        y = _decode_plotly_array(trace.get("y", []))
 
         # Extract error bar arrays regardless of the visible flag
         dy: List = []
         error_y = trace.get("error_y", {})
         if isinstance(error_y, dict) and "array" in error_y:
-            dy = list(error_y["array"])
+            dy = _decode_plotly_array(error_y["array"])
 
         dx: List = []
         error_x = trace.get("error_x", {})
         if isinstance(error_x, dict) and "array" in error_x:
-            dx = list(error_x["array"])
+            dx = _decode_plotly_array(error_x["array"])
 
         if dx:
             result.append([x, y, dy, dx])
@@ -490,6 +519,10 @@ def extract_heatmap_data(plot_div: str) -> HeatmapDataHint:
     Extract data from a Plotly HTML div produced by :func:`plot_heatmap` and
     reconstruct the original ``x``, ``y``, ``z`` arrays.
 
+    The original ``x``, ``y``, and ``z`` inputs to :func:`plot_heatmap` may have
+    been plain Python lists or NumPy arrays (including 2-D arrays for ``z``).
+    Regardless of the original type, all returned values are plain Python lists.
+
     @param plot_div: HTML div string produced by :func:`plot_heatmap` with
                     ``publish=False``.
     @return: ``[x, y, z]`` where each element is a plain Python list
@@ -522,9 +555,9 @@ def extract_heatmap_data(plot_div: str) -> HeatmapDataHint:
     if "z" not in trace:
         raise ValueError("No z data found in trace; the div may not be a heatmap or surface plot")
 
-    x = list(trace.get("x", []))
-    y = list(trace.get("y", []))
-    z = [list(row) for row in trace["z"]]
+    x = _decode_plotly_array(trace.get("x", []))
+    y = _decode_plotly_array(trace.get("y", []))
+    z = _decode_plotly_array(trace["z"])
 
     return [x, y, z]
 
@@ -552,6 +585,10 @@ def extract_data(plot_div: str) -> PlotDataHint:
 
     All arrays are plain Python lists.  Error bar arrays in 1D plots are always returned
     regardless of their ``visible`` flag.
+
+    The original inputs to :func:`plot1d` or :func:`plot_heatmap` may have been
+    plain Python lists or NumPy arrays. Regardless of the original type, all
+    returned values are plain Python lists.
 
     @param plot_div: HTML div string produced by :func:`plot1d` or
                     :func:`plot_heatmap` with ``publish=False``.
