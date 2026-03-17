@@ -1,15 +1,23 @@
 #!/usr/bin/env python
+import base64
+import json
 import logging
 import re
 import string
 from typing import Dict, List, Optional, Union
 
+import numpy as np
 import requests
 import urllib3
 
 from plot_publisher._configuration import Configuration, read_configuration
 
 logger = logging.getLogger(__name__)
+
+# Type aliases for plot data return shapes
+Plot1DDataHint = List[List[List]]  # [[x, y, ...], ...]  – one sub-list per trace
+HeatmapDataHint = List[List]       # [x, y, z]           – exactly three sub-lists
+PlotDataHint = Union[Plot1DDataHint, HeatmapDataHint]
 
 
 def _getURL(url_template: str, instrument: str, run_number: Union[int, str]) -> str:
@@ -180,6 +188,29 @@ def _is_plotly_html_content(content: str) -> bool:
     return all(plotly_indicators)
 
 
+def _decode_plotly_array(value):
+    """
+    Decode a Plotly array value, handling both plain lists and binary-encoded arrays.
+
+    Plotly may serialize numpy arrays as {'bdata': '<base64>', 'dtype': '<dtype>'}
+    or 2-D arrays as {'bdata': '<base64>', 'dtype': '<dtype>', 'shape': 'rows, cols'}.
+
+    @param value: Either a plain list or a Plotly binary-encoded dict.
+    @return: Plain Python list of values (or list of lists for 2-D arrays).
+    """
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict) and "bdata" in value and "dtype" in value:
+        raw = base64.b64decode(value["bdata"])
+        arr = np.frombuffer(raw, dtype=value["dtype"])
+        if "shape" in value:
+            shape = tuple(int(s) for s in value["shape"].split(","))
+            arr = arr.reshape(shape)
+            return arr.tolist()
+        return arr.tolist()
+    return list(value) if value else []
+
+
 def plot1d(
     run_number: Union[int, str],
     data_list: Union[List[float], List[List[float]]],
@@ -309,6 +340,85 @@ def plot1d(
         return plot_div
 
 
+def extract_plot1d_data(plot_div: str) -> Plot1DDataHint:
+    """
+    Extract data from a Plotly HTML div produced by :func:`plot1d` and reconstruct
+    the original ``[[x, y, dy, dx], ...]`` input format.
+
+    Each trace is returned as a plain Python list of lists:
+
+    * ``[x, y]``            – when no error bars are present
+    * ``[x, y, dy]``        – when only Y error bars are present
+    * ``[x, y, dy, dx]``    – when both X and Y error bars are present
+
+    Error bar arrays are always extracted regardless of their ``visible`` flag.
+    All values are returned as plain Python lists.
+
+    The original ``x``, ``y``, and ``z`` inputs to :func:`plot1d` may have
+    been plain Python lists or NumPy arrays (including 2-D arrays for ``z``).
+    Regardless of the original type, all returned values are plain Python lists.
+
+    @param plot_div: HTML div string produced by :func:`plot1d` with
+                    ``publish=False``.
+    @return: List of traces, where each trace is ``[x, y]``, ``[x, y, dy]``,
+             or ``[x, y, dy, dx]``.
+    @raises ValueError: If *plot_div* is not a string, contains no recognisable
+                        Plotly data, cannot be JSON-parsed, or has no traces.
+    """
+    if not isinstance(plot_div, str):
+        raise ValueError("plot_div must be a string")
+
+    # Plotly serialises the figure as a JSON argument to Plotly.newPlot or
+    # Plotly.react.  Locate the start of the traces array (the first '[' that
+    # follows the function call and the div-id argument).
+    pattern = r"Plotly\.(?:newPlot|react)\s*\([^,]+,\s*(\[)"
+    match = re.search(pattern, plot_div, re.DOTALL)
+    if not match:
+        raise ValueError("No Plotly data found in the provided div")
+
+    # Use raw_decode starting at the '[' so we get exactly the traces array
+    # and stop before the layout/config arguments.
+    array_start = match.start(1)
+    try:
+        traces, _ = json.JSONDecoder().raw_decode(plot_div, array_start)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Failed to parse Plotly JSON data: {exc}") from exc
+
+    if not isinstance(traces, list) or len(traces) == 0:
+        raise ValueError("No traces found in Plotly data")
+
+    result = []
+    for trace in traces:
+        if not isinstance(trace, dict):
+            continue
+
+        x = _decode_plotly_array(trace.get("x", []))
+        y = _decode_plotly_array(trace.get("y", []))
+
+        # Extract error bar arrays regardless of the visible flag
+        dy: List = []
+        error_y = trace.get("error_y", {})
+        if isinstance(error_y, dict) and "array" in error_y:
+            dy = _decode_plotly_array(error_y["array"])
+
+        dx: List = []
+        error_x = trace.get("error_x", {})
+        if isinstance(error_x, dict) and "array" in error_x:
+            dx = _decode_plotly_array(error_x["array"])
+
+        if dx:
+            result.append([x, y, dy, dx])
+        elif dy:
+            result.append([x, y, dy])
+        else:
+            result.append([x, y])
+
+    if not result:
+        raise ValueError("No traces found in Plotly data")
+
+    return result
+
+
 def plot_heatmap(
     run_number,
     x,
@@ -322,6 +432,7 @@ def plot_heatmap(
     instrument="",
     title="",
     publish=True,
+    colorscale="Jet",
 ):
     """
     Generate a 2-D heat-map (or surface plot) and optionally publish it.
@@ -337,6 +448,7 @@ def plot_heatmap(
     @param title:      Plot title.
     @param publish:    If ``True`` the plot is sent to the server; otherwise the
                        HTML div is returned.
+    @param colorscale: Colorscale for the heatmap. Default is "Jet".
     @return: ``requests.Response`` when *publish* is True, otherwise the HTML div.
     """
     import plotly.graph_objs as go
@@ -384,7 +496,7 @@ def plot_heatmap(
     if surface:
         trace = go.Surface(z=z, x=x, y=y)
     else:
-        trace = go.Heatmap(z=z, x=x, y=y)
+        trace = go.Heatmap(z=z, x=x, y=y, colorscale=colorscale)
 
     fig = go.Figure(data=[trace], layout=layout)
 
@@ -400,3 +512,109 @@ def plot_heatmap(
             return None  # Return None for other exceptions
     else:
         return plot_div
+
+
+def extract_heatmap_data(plot_div: str) -> HeatmapDataHint:
+    """
+    Extract data from a Plotly HTML div produced by :func:`plot_heatmap` and
+    reconstruct the original ``x``, ``y``, ``z`` arrays.
+
+    The original ``x``, ``y``, and ``z`` inputs to :func:`plot_heatmap` may have
+    been plain Python lists or NumPy arrays (including 2-D arrays for ``z``).
+    Regardless of the original type, all returned values are plain Python lists.
+
+    @param plot_div: HTML div string produced by :func:`plot_heatmap` with
+                    ``publish=False``.
+    @return: ``[x, y, z]`` where each element is a plain Python list
+             (``z`` is a list of rows).
+    @raises ValueError: If *plot_div* is not a string, contains no recognisable
+                        Plotly data, cannot be JSON-parsed, has no traces, or the
+                        first trace contains no ``z`` data.
+    """
+    if not isinstance(plot_div, str):
+        raise ValueError("plot_div must be a string")
+
+    pattern = r"Plotly\.(?:newPlot|react)\s*\([^,]+,\s*(\[)"
+    match = re.search(pattern, plot_div, re.DOTALL)
+    if not match:
+        raise ValueError("No Plotly data found in the provided div")
+
+    array_start = match.start(1)
+    try:
+        traces, _ = json.JSONDecoder().raw_decode(plot_div, array_start)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Failed to parse Plotly JSON data: {exc}") from exc
+
+    if not isinstance(traces, list) or len(traces) == 0:
+        raise ValueError("No traces found in Plotly data")
+
+    trace = traces[0]
+    if not isinstance(trace, dict):
+        raise ValueError("No traces found in Plotly data")
+
+    if "z" not in trace:
+        raise ValueError("No z data found in trace; the div may not be a heatmap or surface plot")
+
+    x = _decode_plotly_array(trace.get("x", []))
+    y = _decode_plotly_array(trace.get("y", []))
+    z = _decode_plotly_array(trace["z"])
+
+    return [x, y, z]
+
+
+def extract_data(plot_div: str) -> PlotDataHint:
+    """
+    Extract data from a Plotly HTML div produced by :func:`plot1d` or
+    :func:`plot_heatmap` and return it in the original input format.
+
+    The plot type is detected automatically by inspecting the first trace:
+
+    * **Heatmap / surface** (first trace contains a ``z`` key) – delegates to
+      :func:`extract_heatmap_data` and returns ``[x, y, z]`` where
+
+      - ``x`` – plain Python list of X-axis values
+      - ``y`` – plain Python list of Y-axis values
+      - ``z`` – list of rows, each row a plain Python list of Z values
+
+    * **1-D scatter** (no ``z`` key) – delegates to :func:`extract_plot1d_data`
+      and returns a list of traces ``[[x, y, ...], ...]`` where each trace is
+
+      - ``[x, y]``         – no error bars
+      - ``[x, y, dy]``     – Y error bars only
+      - ``[x, y, dy, dx]`` – both Y and X error bars
+
+    All arrays are plain Python lists.  Error bar arrays in 1D plots are always returned
+    regardless of their ``visible`` flag.
+
+    The original inputs to :func:`plot1d` or :func:`plot_heatmap` may have been
+    plain Python lists or NumPy arrays. Regardless of the original type, all
+    returned values are plain Python lists.
+
+    @param plot_div: HTML div string produced by :func:`plot1d` or
+                    :func:`plot_heatmap` with ``publish=False``.
+    @return: ``[x, y, z]`` for heatmap / surface plots, or
+             ``[[x, y, ...], ...]`` for 1-D scatter plots.
+    @raises ValueError: If *plot_div* is not a string, contains no recognisable
+                        Plotly data, cannot be JSON-parsed, or has no traces.
+    """
+    if not isinstance(plot_div, str):
+        raise ValueError("plot_div must be a string")
+
+    pattern = r"Plotly\.(?:newPlot|react)\s*\([^,]+,\s*(\[)"
+    match = re.search(pattern, plot_div, re.DOTALL)
+    if not match:
+        raise ValueError("No Plotly data found in the provided div")
+
+    array_start = match.start(1)
+    try:
+        traces, _ = json.JSONDecoder().raw_decode(plot_div, array_start)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Failed to parse Plotly JSON data: {exc}") from exc
+
+    if not isinstance(traces, list) or len(traces) == 0 or not isinstance(traces[0], dict):
+        raise ValueError("No traces found in Plotly data")
+
+    if "z" in traces[0]:
+        return extract_heatmap_data(plot_div)
+    return extract_plot1d_data(plot_div)
+
