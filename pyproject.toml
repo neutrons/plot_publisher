@@ -11,7 +11,7 @@ keywords = ["neutrons", "plotting", "live-data"]
 readme = "README.md"
 dependencies = [
   "requests>2.0.0",
-  "plotly>5.0.0",
+  "plotly>=6.7.0",
 ]
 
 [project.urls]
