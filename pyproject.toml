@@ -10,7 +10,7 @@ license = { text = "MIT" }
 keywords = ["neutrons", "plotting", "live-data"]
 readme = "README.md"
 dependencies = [
-  "requests>2.0.0",
+  "requests>=2.32.5",
   "plotly>5.0.0",
 ]
 
