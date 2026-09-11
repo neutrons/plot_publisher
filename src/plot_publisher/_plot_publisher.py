@@ -244,7 +244,7 @@ def plot1d(
     @raises RuntimeError: If *data_list* is malformed.
     """
     import plotly.graph_objs as go
-    from plotly.offline import plot
+    import plotly.io as pio
 
     # Create traces
     if not isinstance(data_list, list):
@@ -326,7 +326,7 @@ def plot1d(
     )
 
     fig = go.Figure(data=data, layout=layout)
-    plot_div = plot(fig, output_type="div", include_plotlyjs=False, show_link=False)
+    plot_div = pio.to_html(fig, full_html=False, include_plotlyjs=False)
     if publish:
         try:
             return publish_plot(instrument, run_number, files={"file": plot_div})
@@ -452,7 +452,7 @@ def plot_heatmap(
     @return: ``requests.Response`` when *publish* is True, otherwise the HTML div.
     """
     import plotly.graph_objs as go
-    from plotly.offline import plot
+    import plotly.io as pio
 
     x_layout = dict(
         title=x_title,
@@ -500,7 +500,7 @@ def plot_heatmap(
 
     fig = go.Figure(data=[trace], layout=layout)
 
-    plot_div = plot(fig, output_type="div", include_plotlyjs=False, show_link=False)
+    plot_div = pio.to_html(fig, full_html=False, include_plotlyjs=False)
     if publish:
         try:
             return publish_plot(instrument, run_number, files={"file": plot_div})
