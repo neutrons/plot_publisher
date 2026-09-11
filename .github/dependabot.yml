@@ -11,6 +11,10 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "build(deps)"
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"  # include all actions in a single PR
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
