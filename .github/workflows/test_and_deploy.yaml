@@ -13,8 +13,12 @@ env:
 
 jobs:
   tests:
-    name: Unit tests
+    name: Unit tests (${{ matrix.environment }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [default, plotly5, plotly6, plotly7]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -27,13 +31,17 @@ jobs:
         with:
           pixi-version: v0.80.0
           manifest-path: pyproject.toml
+          environments: ${{ matrix.environment }}
+
+      - name: Report plotly version
+        run: pixi run -e ${{ matrix.environment }} python -c "import plotly; print('plotly', plotly.__version__)"
 
       - name: Run unit tests
-        run: pixi run test
+        run: pixi run -e ${{ matrix.environment }} test
 
       - name: Upload coverage to codecov
         uses: codecov/codecov-action@v7
-        if: github.actor != 'dependabot[bot]'
+        if: matrix.environment == 'default' && github.actor != 'dependabot[bot]'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
