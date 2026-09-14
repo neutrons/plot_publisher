@@ -11,7 +11,7 @@ keywords = ["neutrons", "plotting", "live-data"]
 readme = "README.md"
 dependencies = [
   "requests>2.0.0",
-  "plotly>5.0.0",
+  "plotly>=5.0.0",
 ]
 
 [project.urls]
@@ -120,6 +120,12 @@ platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
 [tool.pixi.environments]
 default = {features = ["test", "package", "docs", "developer"], solve-group = "default"}
+# One environment per supported plotly major, used by the plotly-compat CI job.
+# Each gets its own solve group so the plotly pin is free to drag the rest of
+# the solve with it.
+plotly5 = {features = ["test", "plotly5"]}
+plotly6 = {features = ["test", "plotly6"]}
+plotly7 = {features = ["test", "plotly7"]}
 
 [tool.pixi.pypi-dependencies]
 plot-publisher = { path = ".", editable = true }
@@ -140,14 +146,14 @@ versioningit = "*"
 python = ">=3.9"
 numpy = "*"
 requests = "*"
-plotly = "*"
+plotly = ">=5.0.0"
 
 [tool.pixi.package]
 name = "plot-publisher"
 version = "0.0.0"  # placeholder, overwritten by sync-version
 
 [tool.pixi.package.build]
-backend = { name = "pixi-build-python", version = "0.1.*" }
+backend = { name = "pixi-build-python", version = "0.8.*" }
 
 # --------------- #
 # Pixi Tasks      #
@@ -215,3 +221,23 @@ sphinx = ">=8.2.1,<9"
 sphinx_rtd_theme = ">=3.0.1,<4"
 myst-parser = "*"
 versioningit = "*"
+
+# Pin a single plotly major. Restricted to linux-64 because these environments
+# only ever run in CI; the default environment still covers all platforms.
+[tool.pixi.feature.plotly5]
+platforms = ["linux-64"]
+
+[tool.pixi.feature.plotly5.dependencies]
+plotly = "5.*"
+
+[tool.pixi.feature.plotly6]
+platforms = ["linux-64"]
+
+[tool.pixi.feature.plotly6.dependencies]
+plotly = "6.*"
+
+[tool.pixi.feature.plotly7]
+platforms = ["linux-64"]
+
+[tool.pixi.feature.plotly7.dependencies]
+plotly = "7.*"

@@ -16,7 +16,7 @@ jobs:
       - name: Set up pixi
         uses: prefix-dev/setup-pixi@v0.10.2
         with:
-          pixi-version: v0.48.1
+          pixi-version: v0.80.0
 
       - name: Build and Publish Conda Package
         env:
@@ -34,7 +34,7 @@ jobs:
       - name: Set up pixi
         uses: prefix-dev/setup-pixi@v0.10.2
         with:
-          pixi-version: v0.48.1
+          pixi-version: v0.80.0
 
       - name: Build and Publish PyPI Package
         env:
