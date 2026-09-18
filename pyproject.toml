@@ -10,7 +10,7 @@ license = { text = "MIT" }
 keywords = ["neutrons", "plotting", "live-data"]
 readme = "README.md"
 dependencies = [
-  "requests>2.0.0",
+  "requests>=2.32.5",
   "plotly>=5.0.0",
 ]
 
@@ -27,7 +27,7 @@ test = [
 ]
 docs = [
   "sphinx>=8.2.1,<9",
-  "sphinx_rtd_theme>=3.0.1,<4",
+  "sphinx_rtd_theme>=3.1.0,<4",
   "versioningit",
   "myst_parser",
 ]
@@ -134,8 +134,8 @@ toml-cli = "*"  # Required for sync-version task
 [tool.pixi.dependencies]
 python = ">=3.9"
 numpy = "*"
-requests = "*"
-plotly = "*"
+requests = ">=2.32.5"
+plotly = ">=5.0.0"
 
 # Pixi Build configuration for conda packaging
 [tool.pixi.package.host-dependencies]
@@ -145,7 +145,7 @@ versioningit = "*"
 [tool.pixi.package.run-dependencies]
 python = ">=3.9"
 numpy = "*"
-requests = "*"
+requests = ">=2.32.5"
 plotly = ">=5.0.0"
 
 [tool.pixi.package]
@@ -218,7 +218,7 @@ ruff = "*"
 
 [tool.pixi.feature.docs.dependencies]
 sphinx = ">=8.2.1,<9"
-sphinx_rtd_theme = ">=3.0.1,<4"
+sphinx_rtd_theme = ">=3.1.0,<4"
 myst-parser = "*"
 versioningit = "*"
 
