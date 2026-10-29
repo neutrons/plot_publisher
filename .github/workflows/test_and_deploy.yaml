@@ -72,7 +72,6 @@ jobs:
         uses: neutrons/gh-actions/pkg-install@46e28a74c8872901c571e0493d26871afe2662fb # v2.1
         with:
           package-name: ${{ env.PKG_NAME }}
-          python-version: "3.10"
           local-channel: /tmp/local-channel
 
       - name: Verify conda package
